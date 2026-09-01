@@ -1,3 +1,5 @@
+import { logError } from './log.js';
+
 /**
  * Tipos de herramientas de dibujo estilo Lightshot
  */
@@ -11,17 +13,23 @@ export const ToolType = {
 };
 
 /**
+ * Marcador para xgettext. Los nombres se dejan sin traducir aquí y se traducen
+ * en el punto de uso con `_()`; esta función sólo hace que el extractor los vea.
+ */
+const N_ = str => str;
+
+/**
  * Paleta de colores inspirada en Lightshot y GNOME Adwaita
  */
 export const ColorPalette = [
-    { name: 'Rojo', hex: '#e01b24', r: 0.878, g: 0.106, b: 0.141, a: 1.0 },
-    { name: 'Azul', hex: '#3584e4', r: 0.208, g: 0.518, b: 0.894, a: 1.0 },
-    { name: 'Verde', hex: '#33d17a', r: 0.200, g: 0.820, b: 0.478, a: 1.0 },
-    { name: 'Amarillo', hex: '#f6d32d', r: 0.965, g: 0.827, b: 0.176, a: 1.0 },
-    { name: 'Naranja', hex: '#ff7800', r: 1.000, g: 0.470, b: 0.000, a: 1.0 },
-    { name: 'Violeta', hex: '#9141ac', r: 0.568, g: 0.254, b: 0.674, a: 1.0 },
-    { name: 'Blanco', hex: '#ffffff', r: 1.000, g: 1.000, b: 1.000, a: 1.0 },
-    { name: 'Negro', hex: '#000000', r: 0.000, g: 0.000, b: 0.000, a: 1.0 },
+    { name: N_('Red'), hex: '#e01b24', r: 0.878, g: 0.106, b: 0.141, a: 1.0 },
+    { name: N_('Blue'), hex: '#3584e4', r: 0.208, g: 0.518, b: 0.894, a: 1.0 },
+    { name: N_('Green'), hex: '#33d17a', r: 0.200, g: 0.820, b: 0.478, a: 1.0 },
+    { name: N_('Yellow'), hex: '#f6d32d', r: 0.965, g: 0.827, b: 0.176, a: 1.0 },
+    { name: N_('Orange'), hex: '#ff7800', r: 1.000, g: 0.470, b: 0.000, a: 1.0 },
+    { name: N_('Purple'), hex: '#9141ac', r: 0.568, g: 0.254, b: 0.674, a: 1.0 },
+    { name: N_('White'), hex: '#ffffff', r: 1.000, g: 1.000, b: 1.000, a: 1.0 },
+    { name: N_('Black'), hex: '#000000', r: 0.000, g: 0.000, b: 0.000, a: 1.0 },
 ];
 
 export const AvailableSizes = [2, 3, 4, 6, 8, 12, 16, 24, 32];
@@ -56,7 +64,7 @@ export class DrawingModel {
             try {
                 listener();
             } catch (e) {
-                console.error('Error in DrawingModel listener:', e);
+                logError('Fallo en un listener del modelo', e);
             }
         }
     }

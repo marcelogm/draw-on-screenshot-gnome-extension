@@ -2,7 +2,11 @@
 
 Dibuja y anota directamente sobre la interfaz nativa interactiva de captura de pantalla de GNOME (`Main.screenshotUI`) al estilo **Lightshot**, con herramientas vectoriales, atajos de teclado, paleta de colores desplegable, control de grosor y atenuación dinámica de menús.
 
-Compatible con **GNOME Shell 45, 46, 47, 48, 49 y 50**.
+Compatible con **GNOME Shell 48, 49 y 50**.
+
+> El código usa APIs que no existen antes de GNOME 48 (`St.BoxLayout.orientation`,
+> `global.stage.context`), así que declarar 45–47 era incorrecto: ahí no funciona.
+> Verificado en 50; 48 y 49 se declaran por compatibilidad de API.
 
 ---
 
@@ -158,6 +162,37 @@ donde `offset` ya viene en **píxeles de buffer** (así lo devuelve
 capturas de ventana el origen es el *buffer rect* de la ventana por su
 `bufferScale`, no el origen del stage.
 
+### Publicación en extensions.gnome.org
+
+Empaquetado (los `--extra-source` son obligatorios: sin ellos `pack` deja fuera
+los subdirectorios y la extensión no carga):
+
+```bash
+gnome-extensions pack \
+  --extra-source=src --extra-source=icons --extra-source=LICENSE \
+  --podir=po --gettext-domain=draw-on-screenshot .
+```
+
+Comprobación previa con el analizador estático que recomienda el propio sitio:
+
+```bash
+pip install -U shexli
+shexli draw-on-screenshot@ricardojparram.shell-extension.zip
+```
+
+Quedan dos hallazgos conocidos, ambos revisados:
+
+- `EGO-A-005` *(manual_review)* — acceso al portapapeles. Es inherente: la UI
+  nativa de captura copia la imagen y sin eso se rompería esa expectativa. La
+  guía exige declararlo en la descripción, y `metadata.json` lo declara.
+- `EGO-P-003` *(error)* — falso positivo. La regla dice *«for extensions that
+  **include** a GSettings Schema»*; esta extensión no define esquema propio,
+  sólo lee `org.gnome.desktop.lockdown` del sistema para respetar el bloqueo de
+  escritura en disco.
+
+El campo `version` de `metadata.json` no se toca: lo asigna el sitio en cada
+subida, y de ahí salen las actualizaciones automáticas.
+
 ### Nota de fragilidad
 
 `_saveScreenshot` se sobrescribe replicando lógica interna del Shell. Si una
@@ -170,4 +205,4 @@ anotaciones antes que perderla.
 
 ## 📄 Licencia
 
-GPL-3.0-or-later
+GPL-3.0-or-later. Texto completo en [LICENSE](LICENSE).

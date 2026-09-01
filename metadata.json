@@ -1,14 +1,12 @@
 {
   "name": "Draw on Screenshot",
-  "description": "Dibuja y anota directamente sobre la interfaz nativa de captura de pantalla de GNOME.",
+  "description": "Annotate directly on GNOME's native screenshot UI, Lightshot style. Tools: pen, line, arrow, rectangle, highlighter and text, with an 8-colour palette, adjustable stroke width, undo/redo and keyboard shortcuts. Annotations are composited into the saved PNG.\n\nClipboard access: like the native screenshot UI, the finished image is copied to the clipboard so it can be pasted straight away. The extension only writes the image it just produced; it never reads the clipboard and never sends its contents anywhere.",
   "uuid": "draw-on-screenshot@ricardojparram",
   "shell-version": [
-    "45",
-    "46",
-    "47",
     "48",
     "49",
     "50"
   ],
+  "gettext-domain": "draw-on-screenshot",
   "url": "https://github.com/ricardojparram/draw-on-screenshot-gnome-extension"
 }

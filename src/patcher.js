@@ -13,6 +13,7 @@ import { DrawingModel, ToolType } from './core/drawingModel.js';
 import { DrawingCanvas } from './ui/drawingCanvas.js';
 import { DrawingToolbar } from './ui/drawingToolbar.js';
 import { ScreenshotCompositor } from './core/compositor.js';
+import { logError, logWarning } from './core/log.js';
 
 /**
  * Separación vertical, en px lógicos, entre el borde superior del panel nativo y
@@ -51,7 +52,19 @@ export class ScreenshotPatcher {
         this._origClose = null;
         this._origSaveScreenshot = null;
 
-        this._lockdownSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.lockdown' });
+        // Esquema de SISTEMA, provisto por gnome-desktop. La extensión no define
+        // ni empaqueta ningún esquema propio: sólo lee `disable-save-to-disk`
+        // para respetar el bloqueo administrativo de escritura en disco, igual
+        // que hace el código nativo de captura del Shell.
+        this._lockdownSettings = null;
+        try {
+            this._lockdownSettings = new Gio.Settings({
+                schema_id: 'org.gnome.desktop.lockdown',
+            });
+        } catch (e) {
+            logWarning('No se pudo leer org.gnome.desktop.lockdown; ' +
+                       'se asumirá que guardar en disco está permitido.');
+        }
     }
 
     enable() {
@@ -75,8 +88,7 @@ export class ScreenshotPatcher {
         this._canPatchSave = REQUIRED_UI_FIELDS.every(field => ui[field] !== undefined);
         if (!this._canPatchSave) {
             const missing = REQUIRED_UI_FIELDS.filter(field => ui[field] === undefined);
-            console.warn(
-                'draw-on-screenshot: ScreenshotUI no expone ' + missing.join(', ') +
+            logWarning('ScreenshotUI no expone ' + missing.join(', ') +
                 '. Se dibujará en pantalla pero las anotaciones no se guardarán ' +
                 'en la captura; el guardado nativo queda intacto.');
         }
@@ -211,7 +223,7 @@ export class ScreenshotPatcher {
                 }
             }
         } catch (e) {
-            console.error('Error limpiando residuos en ScreenshotUI:', e);
+            logError('Error limpiando residuos en ScreenshotUI', e);
         }
     }
 
@@ -401,7 +413,7 @@ export class ScreenshotPatcher {
                 ui.set_child_above_sibling(popover, null);
             }
         } catch (e) {
-            console.error('Error reordenando los actores de dibujo:', e);
+            logError('Error reordenando los actores de dibujo', e);
         }
     }
 
@@ -517,8 +529,8 @@ export class ScreenshotPatcher {
                      window.boundingBox;
 
         if (!rect || !Number.isFinite(rect.x) || !Number.isFinite(rect.y)) {
-            console.warn('draw-on-screenshot: no se pudo determinar el origen de la ventana; ' +
-                         'las anotaciones podrían quedar desplazadas.');
+            logWarning('No se pudo determinar el origen de la ventana; ' +
+                       'las anotaciones podrían quedar desplazadas.');
             return [0, 0];
         }
 
@@ -654,8 +666,7 @@ export class ScreenshotPatcher {
             } catch (e) {
                 // Nunca perder la captura por un fallo al estampar las
                 // anotaciones: se descarta el dibujo y se guarda la nativa.
-                console.error('draw-on-screenshot: fallo al componer las anotaciones, ' +
-                              'se guarda la captura sin ellas:', e);
+                logError('Fallo al componer las anotaciones; se guarda la captura sin ellas', e);
                 return self._origSaveScreenshot.call(this);
             }
 
@@ -666,13 +677,18 @@ export class ScreenshotPatcher {
     }
 
     _storeScreenshot(bytes, pixbuf) {
+        // Acceso al portapapeles: se ESCRIBE la captura recién tomada, nunca se
+        // lee. Reproduce el comportamiento del guardado nativo del Shell, que
+        // deja la imagen lista para pegar; sin esto la extensión rompería una
+        // expectativa básica de la UI de captura.
         const clipboard = St.Clipboard.get_default();
         clipboard.set_content(St.ClipboardType.CLIPBOARD, 'image/png', bytes);
 
         const time = GLib.DateTime.new_now_local();
         let file = null;
 
-        const disableSaveToDisk = this._lockdownSettings.get_boolean('disable-save-to-disk');
+        const disableSaveToDisk =
+            this._lockdownSettings?.get_boolean('disable-save-to-disk') ?? false;
 
         if (!disableSaveToDisk) {
             const dir = Gio.File.new_for_path(GLib.build_filenamev([
@@ -684,7 +700,7 @@ export class ScreenshotPatcher {
                 dir.make_directory_with_parents(null);
             } catch (e) {
                 if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS)) {
-                    console.error('Error al crear directorio de capturas:', e);
+                    logError('Error al crear directorio de capturas', e);
                 }
             }
 
@@ -704,7 +720,7 @@ export class ScreenshotPatcher {
                     break;
                 } catch (e) {
                     if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS)) {
-                        console.error('Error al escribir archivo de captura:', e);
+                        logError('Error al escribir archivo de captura', e);
                         file = null;
                         break;
                     }
@@ -753,14 +769,14 @@ export class ScreenshotPatcher {
                         Gio.app_info_launch_default_for_uri(
                             target.get_uri(), global.create_app_launch_context(0, -1));
                     } catch (err) {
-                        console.error('Error opening screenshot:', err);
+                        logError('Error al abrir la captura', err);
                     }
                 });
             }
 
             source.addNotification(notification);
         } catch (e) {
-            console.error('Error al mostrar notificación de captura:', e);
+            logError('Error al mostrar notificación de captura', e);
         }
 
         return file;

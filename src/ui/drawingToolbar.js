@@ -3,6 +3,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { ToolType, ColorPalette } from '../core/drawingModel.js';
 
 export const DrawingToolbar = GObject.registerClass({
@@ -72,12 +73,12 @@ export const DrawingToolbar = GObject.registerClass({
     _buildUI() {
         // --- 1. Herramientas ---
         const tools = [
-            { id: ToolType.PEN, icon: 'dos-pen-symbolic', fallback: 'document-edit-symbolic', tooltip: 'Lápiz (P / D)' },
-            { id: ToolType.LINE, icon: 'dos-line-symbolic', fallback: 'draw-line-symbolic', tooltip: 'Línea (L)' },
-            { id: ToolType.ARROW, icon: 'dos-arrow-symbolic', fallback: 'go-next-symbolic', tooltip: 'Flecha (A)' },
-            { id: ToolType.RECT, icon: 'dos-rect-symbolic', fallback: 'checkbox-symbolic', tooltip: 'Rectángulo (R)' },
-            { id: ToolType.HIGHLIGHTER, icon: 'dos-highlighter-symbolic', fallback: 'edit-select-all-symbolic', tooltip: 'Resaltador (H)' },
-            { id: ToolType.TEXT, icon: 'dos-text-symbolic', fallback: 'insert-text-symbolic', tooltip: 'Texto (T)' },
+            { id: ToolType.PEN, icon: 'dos-pen-symbolic', fallback: 'document-edit-symbolic', tooltip: _('Pen (P / D)') },
+            { id: ToolType.LINE, icon: 'dos-line-symbolic', fallback: 'draw-line-symbolic', tooltip: _('Line (L)') },
+            { id: ToolType.ARROW, icon: 'dos-arrow-symbolic', fallback: 'go-next-symbolic', tooltip: _('Arrow (A)') },
+            { id: ToolType.RECT, icon: 'dos-rect-symbolic', fallback: 'checkbox-symbolic', tooltip: _('Rectangle (R)') },
+            { id: ToolType.HIGHLIGHTER, icon: 'dos-highlighter-symbolic', fallback: 'edit-select-all-symbolic', tooltip: _('Highlighter (H)') },
+            { id: ToolType.TEXT, icon: 'dos-text-symbolic', fallback: 'insert-text-symbolic', tooltip: _('Text (T)') },
         ];
 
         for (const tool of tools) {
@@ -106,7 +107,7 @@ export const DrawingToolbar = GObject.registerClass({
             style_class: 'screenshot-draw-color-picker-btn',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Elegir color (C)',
+            accessible_name: _('Choose colour (C)'),
         });
 
         this._colorPreviewSwatch = new St.Widget({
@@ -131,7 +132,7 @@ export const DrawingToolbar = GObject.registerClass({
                 style: `background-color: ${color.hex};`,
                 can_focus: true,
                 track_hover: true,
-                accessible_name: color.name,
+                accessible_name: _(color.name),
             });
 
             swatchBtn.connect('clicked', () => {
@@ -163,7 +164,7 @@ export const DrawingToolbar = GObject.registerClass({
             style_class: 'screenshot-draw-stepper-btn',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Reducir tamaño (-)',
+            accessible_name: _('Decrease size (-)'),
         });
         decBtn.set_child(new St.Icon({
             icon_name: 'value-decrease-symbolic',
@@ -184,7 +185,7 @@ export const DrawingToolbar = GObject.registerClass({
             style_class: 'screenshot-draw-stepper-btn',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Aumentar tamaño (+)',
+            accessible_name: _('Increase size (+)'),
         });
         incBtn.set_child(new St.Icon({
             icon_name: 'value-increase-symbolic',
@@ -218,7 +219,7 @@ export const DrawingToolbar = GObject.registerClass({
             style_class: 'screenshot-draw-tool-button',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Deshacer (Ctrl+Z)',
+            accessible_name: _('Undo (Ctrl+Z)'),
         });
         this._undoBtn.set_child(new St.Icon({
             icon_name: 'edit-undo-symbolic',
@@ -233,7 +234,7 @@ export const DrawingToolbar = GObject.registerClass({
             style_class: 'screenshot-draw-tool-button',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Rehacer (Ctrl+Shift+Z)',
+            accessible_name: _('Redo (Ctrl+Shift+Z)'),
         });
         this._redoBtn.set_child(new St.Icon({
             icon_name: 'edit-redo-symbolic',
@@ -248,7 +249,7 @@ export const DrawingToolbar = GObject.registerClass({
             style_class: 'screenshot-draw-tool-button',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Limpiar todo (Supr)',
+            accessible_name: _('Clear all (Delete)'),
         });
         clearBtn.set_child(new St.Icon({
             icon_name: 'edit-clear-symbolic',

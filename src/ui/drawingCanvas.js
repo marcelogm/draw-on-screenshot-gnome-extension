@@ -3,6 +3,7 @@ import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import cairo from 'gi://cairo';
 import { ToolType } from '../core/drawingModel.js';
+import { logError } from '../core/log.js';
 
 /**
  * Renderiza un trazo sobre un contexto de Cairo.
@@ -193,7 +194,7 @@ export const DrawingCanvas = GObject.registerClass({
 
             this._renderBrushPreview(cr, offsetX, offsetY);
         } catch (err) {
-            console.error('Error in DrawingCanvas repaint:', err);
+            logError('Fallo al repintar el lienzo', err);
         }
     }
 

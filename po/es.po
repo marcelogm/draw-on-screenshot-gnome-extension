@@ -1,0 +1,125 @@
+# Spanish translation for Draw on Screenshot.
+# Copyright (C) 2026 ricardojparram
+# This file is distributed under the same license as the Draw on Screenshot package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Draw on Screenshot\n"
+"Report-Msgid-Bugs-To: https://github.com/ricardojparram/draw-on-screenshot-gnome-extension/issues\n"
+"POT-Creation-Date: 2026-09-01 11:39\n"
+"PO-Revision-Date: 2026-09-01 11:39\n"
+"Last-Translator: ricardojparram <ricardo.prxr16@gmail.com>\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/patcher.js:621 src/patcher.js:662
+msgid "Screenshot taken"
+msgstr "Captura realizada"
+
+#: src/patcher.js:696
+msgid "Screenshots"
+msgstr "Capturas de pantalla"
+
+#: src/patcher.js:708
+msgid "Screenshot From %s"
+msgstr "Captura de %s"
+
+#: src/patcher.js:745
+msgid "Screen Capture"
+msgstr "Captura de pantalla"
+
+#: src/patcher.js:752
+msgid "Screenshot captured"
+msgstr "Captura realizada"
+
+#: src/patcher.js:753
+msgid "You can paste the image from the clipboard"
+msgstr "Puede pegar la imagen desde el portapapeles"
+
+#: src/patcher.js:761
+msgid "Show in Files"
+msgstr "Mostrar en Archivos"
+
+#: src/core/drawingModel.js:25
+msgid "Red"
+msgstr "Rojo"
+
+#: src/core/drawingModel.js:26
+msgid "Blue"
+msgstr "Azul"
+
+#: src/core/drawingModel.js:27
+msgid "Green"
+msgstr "Verde"
+
+#: src/core/drawingModel.js:28
+msgid "Yellow"
+msgstr "Amarillo"
+
+#: src/core/drawingModel.js:29
+msgid "Orange"
+msgstr "Naranja"
+
+#: src/core/drawingModel.js:30
+msgid "Purple"
+msgstr "Violeta"
+
+#: src/core/drawingModel.js:31
+msgid "White"
+msgstr "Blanco"
+
+#: src/core/drawingModel.js:32
+msgid "Black"
+msgstr "Negro"
+
+#: src/ui/drawingToolbar.js:76
+msgid "Pen (P / D)"
+msgstr "Lápiz (P / D)"
+
+#: src/ui/drawingToolbar.js:77
+msgid "Line (L)"
+msgstr "Línea (L)"
+
+#: src/ui/drawingToolbar.js:78
+msgid "Arrow (A)"
+msgstr "Flecha (A)"
+
+#: src/ui/drawingToolbar.js:79
+msgid "Rectangle (R)"
+msgstr "Rectángulo (R)"
+
+#: src/ui/drawingToolbar.js:80
+msgid "Highlighter (H)"
+msgstr "Resaltador (H)"
+
+#: src/ui/drawingToolbar.js:81
+msgid "Text (T)"
+msgstr "Texto (T)"
+
+#: src/ui/drawingToolbar.js:110
+msgid "Choose colour (C)"
+msgstr "Elegir color (C)"
+
+#: src/ui/drawingToolbar.js:167
+msgid "Decrease size (-)"
+msgstr "Reducir tamaño (-)"
+
+#: src/ui/drawingToolbar.js:188
+msgid "Increase size (+)"
+msgstr "Aumentar tamaño (+)"
+
+#: src/ui/drawingToolbar.js:222
+msgid "Undo (Ctrl+Z)"
+msgstr "Deshacer (Ctrl+Z)"
+
+#: src/ui/drawingToolbar.js:237
+msgid "Redo (Ctrl+Shift+Z)"
+msgstr "Rehacer (Ctrl+Mayús+Z)"
+
+#: src/ui/drawingToolbar.js:252
+msgid "Clear all (Delete)"
+msgstr "Limpiar todo (Supr)"
