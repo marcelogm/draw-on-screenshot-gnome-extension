@@ -1,0 +1,14 @@
+{
+  "name": "Draw on Screenshot",
+  "description": "Dibuja y anota directamente sobre la interfaz nativa de captura de pantalla de GNOME.",
+  "uuid": "draw-on-screenshot@ricardojparram",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
+  "url": "https://github.com/ricardojparram/gnome-screenshot-draw"
+}
