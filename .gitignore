@@ -3,3 +3,5 @@ node_modules/
 *.log
 .system_generated/
 scratch/
+schemas/gschemas.compiled
+*.shell-extension.zip

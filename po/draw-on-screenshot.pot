@@ -9,120 +9,425 @@ msgstr ""
 "Project-Id-Version: Draw on Screenshot\n"
 "Report-Msgid-Bugs-To: https://github.com/ricardojparram/draw-on-screenshot-"
 "gnome-extension/issues\n"
-"POT-Creation-Date: 2026-09-01 11:39-0400\n"
+"POT-Creation-Date: 2026-09-01 11:41-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/patcher.js:621 src/patcher.js:662
+#: prefs.js:24 prefs.js:46 src/ui/drawingToolbar.js:27
+msgid "Pen"
+msgstr ""
+
+#: prefs.js:24
+msgid "Freehand drawing"
+msgstr ""
+
+#: prefs.js:25 prefs.js:47 src/ui/drawingToolbar.js:34
+msgid "Line"
+msgstr ""
+
+#: prefs.js:25
+msgid "Straight line, Shift snaps to 45°"
+msgstr ""
+
+#: prefs.js:26 prefs.js:48 src/ui/drawingToolbar.js:41
+msgid "Arrow"
+msgstr ""
+
+#: prefs.js:26
+msgid "Arrow head at the release point"
+msgstr ""
+
+#: prefs.js:27 prefs.js:49 src/ui/drawingToolbar.js:48
+msgid "Rectangle"
+msgstr ""
+
+#: prefs.js:27
+msgid "Shift for a square, Ctrl from the centre"
+msgstr ""
+
+#: prefs.js:28 prefs.js:50 src/ui/drawingToolbar.js:55
+msgid "Ellipse"
+msgstr ""
+
+#: prefs.js:28
+msgid "Shift for a circle, Ctrl from the centre"
+msgstr ""
+
+#: prefs.js:29 prefs.js:51 src/ui/drawingToolbar.js:62
+msgid "Highlighter"
+msgstr ""
+
+#: prefs.js:29
+msgid "Wide translucent stroke"
+msgstr ""
+
+#. --- Texto ---
+#: prefs.js:30 prefs.js:52 prefs.js:318 src/ui/drawingToolbar.js:69
+msgid "Text"
+msgstr ""
+
+#: prefs.js:30
+msgid "Click, type and press Enter"
+msgstr ""
+
+#: prefs.js:31 prefs.js:53 src/ui/drawingToolbar.js:76
+msgid "Counter"
+msgstr ""
+
+#: prefs.js:31
+msgid "Numbered bubbles that count up on their own"
+msgstr ""
+
+#: prefs.js:32 prefs.js:54 src/ui/drawingToolbar.js:83
+msgid "Pixelate"
+msgstr ""
+
+#: prefs.js:32
+msgid "Hide a region of the capture"
+msgstr ""
+
+#: prefs.js:37
+msgid "Colour picker"
+msgstr ""
+
+#: prefs.js:37
+msgid "Swatch button and palette popover"
+msgstr ""
+
+#: prefs.js:38
+msgid "Fill toggle"
+msgstr ""
+
+#: prefs.js:38
+msgid "Switch shapes between outlined and filled"
+msgstr ""
+
+#: prefs.js:39
+msgid "Stroke width"
+msgstr ""
+
+#: prefs.js:39
+msgid "The − / + buttons and the current width"
+msgstr ""
+
+#: prefs.js:40
+msgid "Undo and redo"
+msgstr ""
+
+#: prefs.js:41 prefs.js:60 src/ui/drawingToolbar.js:372
+msgid "Clear all"
+msgstr ""
+
+#: prefs.js:42
+msgid "Tooltips"
+msgstr ""
+
+#: prefs.js:42
+msgid "Explain each button when the pointer rests on it"
+msgstr ""
+
+#: prefs.js:58 src/ui/drawingToolbar.js:350
+msgid "Undo"
+msgstr ""
+
+#: prefs.js:59 src/ui/drawingToolbar.js:360
+msgid "Redo"
+msgstr ""
+
+#: prefs.js:61
+msgid "Next colour"
+msgstr ""
+
+#: prefs.js:62 src/ui/drawingToolbar.js:318
+msgid "Thicker stroke"
+msgstr ""
+
+#: prefs.js:63 src/ui/drawingToolbar.js:299
+msgid "Thinner stroke"
+msgstr ""
+
+#: prefs.js:64
+msgid "Toggle fill"
+msgstr ""
+
+#: prefs.js:107
+msgid "Toolbar"
+msgstr ""
+
+#: prefs.js:112 prefs.js:473
+msgid "Tools"
+msgstr ""
+
+#: prefs.js:113
+msgid ""
+"Turn a tool off to keep it out of the toolbar. The arrows set the order the "
+"buttons appear in."
+msgstr ""
+
+#: prefs.js:121
+msgid "Controls"
+msgstr ""
+
+#: prefs.js:122
+msgid ""
+"The rest of the toolbar. Hidden controls keep working through their keyboard "
+"shortcuts."
+msgstr ""
+
+#: prefs.js:174
+msgid "Move left in the toolbar"
+msgstr ""
+
+#: prefs.js:190
+msgid "Move right in the toolbar"
+msgstr ""
+
+#: prefs.js:246
+msgid "Drawing"
+msgstr ""
+
+#: prefs.js:252
+msgid "Palette"
+msgstr ""
+
+#: prefs.js:253
+msgid ""
+"Colours offered by the picker, in order. The first one is selected when the "
+"capture UI opens."
+msgstr ""
+
+#: prefs.js:265
+msgid "Add a colour"
+msgstr ""
+
+#: prefs.js:277
+msgid "Restore the default palette"
+msgstr ""
+
+#. --- Trazo ---
+#: prefs.js:290
+msgid "Stroke"
+msgstr ""
+
+#: prefs.js:294
+msgid "Default width"
+msgstr ""
+
+#: prefs.js:295
+msgid "In pixels. Ctrl + scroll wheel changes it while drawing."
+msgstr ""
+
+#: prefs.js:304
+msgid "Fill shapes by default"
+msgstr ""
+
+#: prefs.js:305
+msgid "Rectangles and ellipses start filled instead of outlined"
+msgstr ""
+
+#: prefs.js:311
+msgid "Shadow under annotations"
+msgstr ""
+
+#: prefs.js:312
+msgid "Keeps them legible over both light and dark backgrounds"
+msgstr ""
+
+#: prefs.js:322
+msgid "Bold text"
+msgstr ""
+
+#: prefs.js:323
+msgid "Off by default: text is drawn at normal weight"
+msgstr ""
+
+#: prefs.js:328
+msgid "Font family"
+msgstr ""
+
+#. --- Contador y pixelado ---
+#: prefs.js:333
+msgid "Counter and pixelate"
+msgstr ""
+
+#: prefs.js:337
+msgid "First counter number"
+msgstr ""
+
+#: prefs.js:338
+msgid "Each capture starts the sequence again from this value"
+msgstr ""
+
+#: prefs.js:347
+msgid "Pixelation block size"
+msgstr ""
+
+#: prefs.js:348
+msgid "Larger blocks hide more. Applied when the capture is saved."
+msgstr ""
+
+#: prefs.js:372
+msgid "Default colour"
+msgstr ""
+
+#: prefs.js:392
+msgid "Move up"
+msgstr ""
+
+#: prefs.js:405
+msgid "Move down"
+msgstr ""
+
+#: prefs.js:420
+msgid "Remove this colour"
+msgstr ""
+
+#: prefs.js:468
+msgid "Shortcuts"
+msgstr ""
+
+#: prefs.js:474
+msgid ""
+"These only apply while the screenshot UI is open. Single letters are fine; "
+"they are ignored while you type an annotation."
+msgstr ""
+
+#: prefs.js:483
+msgid "Actions"
+msgstr ""
+
+#: prefs.js:494
+msgid "Reset all shortcuts"
+msgstr ""
+
+#: prefs.js:495
+msgid "Restore the shortcuts this extension ships with"
+msgstr ""
+
+#: prefs.js:498
+msgid "Reset"
+msgstr ""
+
+#: prefs.js:520
+msgid "Disabled"
+msgstr ""
+
+#: prefs.js:527
+msgid "Disable this shortcut"
+msgstr ""
+
+#: prefs.js:553
+msgid "Set shortcut"
+msgstr ""
+
+#: prefs.js:554
+msgid ""
+"Press the key combination you want to use.\n"
+"Backspace disables the shortcut, Escape keeps the current one."
+msgstr ""
+
+#: prefs.js:557
+msgid "Cancel"
+msgstr ""
+
+#: src/patcher.js:724 src/patcher.js:765
 msgid "Screenshot taken"
 msgstr ""
 
-#: src/patcher.js:696
+#: src/patcher.js:799
 msgid "Screenshots"
 msgstr ""
 
-#: src/patcher.js:708
+#: src/patcher.js:811
 #, javascript-format
 msgid "Screenshot From %s"
 msgstr ""
 
-#: src/patcher.js:745
+#: src/patcher.js:848
 msgid "Screen Capture"
 msgstr ""
 
-#: src/patcher.js:752
+#: src/patcher.js:855
 msgid "Screenshot captured"
 msgstr ""
 
-#: src/patcher.js:753
+#: src/patcher.js:856
 msgid "You can paste the image from the clipboard"
 msgstr ""
 
-#: src/patcher.js:761
+#: src/patcher.js:864
 msgid "Show in Files"
 msgstr ""
 
-#: src/core/drawingModel.js:25
-msgid "Red"
+#: src/ui/drawingToolbar.js:28
+msgid "Draw freehand"
 msgstr ""
 
-#: src/core/drawingModel.js:26
-msgid "Blue"
+#: src/ui/drawingToolbar.js:35
+msgid "Straight line. Hold Shift to snap to 45°"
 msgstr ""
 
-#: src/core/drawingModel.js:27
-msgid "Green"
+#: src/ui/drawingToolbar.js:42
+msgid "Arrow pointing where you release. Hold Shift to snap to 45°"
 msgstr ""
 
-#: src/core/drawingModel.js:28
-msgid "Yellow"
+#: src/ui/drawingToolbar.js:49
+msgid "Hold Shift for a square, Ctrl to draw from the centre"
 msgstr ""
 
-#: src/core/drawingModel.js:29
-msgid "Orange"
+#: src/ui/drawingToolbar.js:56
+msgid "Hold Shift for a circle, Ctrl to draw from the centre"
 msgstr ""
 
-#: src/core/drawingModel.js:30
-msgid "Purple"
+#: src/ui/drawingToolbar.js:63
+msgid "Wide translucent stroke that lets the capture show through"
 msgstr ""
 
-#: src/core/drawingModel.js:31
-msgid "White"
-msgstr ""
-
-#: src/core/drawingModel.js:32
-msgid "Black"
-msgstr ""
-
-#: src/ui/drawingToolbar.js:76
-msgid "Pen (P / D)"
+#: src/ui/drawingToolbar.js:70
+msgid "Click, type, then press Enter to place the text"
 msgstr ""
 
 #: src/ui/drawingToolbar.js:77
-msgid "Line (L)"
+msgid "Each click drops the next number in the sequence"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:78
-msgid "Arrow (A)"
+#: src/ui/drawingToolbar.js:84
+msgid "Drag over a region to hide it in the saved image"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:79
-msgid "Rectangle (R)"
+#: src/ui/drawingToolbar.js:216 src/ui/drawingToolbar.js:224
+msgid "Colour"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:80
-msgid "Highlighter (H)"
+#: src/ui/drawingToolbar.js:224
+msgid "Open the palette; the shortcut cycles through it"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:81
-msgid "Text (T)"
+#: src/ui/drawingToolbar.js:271
+msgid "Fill"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:110
-msgid "Choose colour (C)"
+#: src/ui/drawingToolbar.js:272
+msgid "Draw rectangles and ellipses filled instead of outlined"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:167
-msgid "Decrease size (-)"
+#: src/ui/drawingToolbar.js:300 src/ui/drawingToolbar.js:319
+msgid "Also Ctrl + scroll wheel anywhere on screen"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:188
-msgid "Increase size (+)"
+#: src/ui/drawingToolbar.js:350
+msgid "Remove the last annotation"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:222
-msgid "Undo (Ctrl+Z)"
+#: src/ui/drawingToolbar.js:360
+msgid "Put back the annotation you just undid"
 msgstr ""
 
-#: src/ui/drawingToolbar.js:237
-msgid "Redo (Ctrl+Shift+Z)"
-msgstr ""
-
-#: src/ui/drawingToolbar.js:252
-msgid "Clear all (Delete)"
+#: src/ui/drawingToolbar.js:372
+msgid "Remove every annotation; undo brings them back"
 msgstr ""

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="draw-on-screenshot">
+  <schema id="org.gnome.shell.extensions.draw-on-screenshot"
+          path="/org/gnome/shell/extensions/draw-on-screenshot/">
+
+    <!-- ============ Herramientas visibles en la barra ============ -->
+    <key name="enabled-tools" type="as">
+      <default>['pen','line','arrow','rect','ellipse','highlighter','text','counter','pixelate']</default>
+      <summary>Tools shown in the toolbar</summary>
+      <description>
+        Ordered list of tool identifiers rendered in the drawing toolbar.
+        Valid values: pen, line, arrow, rect, ellipse, highlighter, text,
+        counter, pixelate. Unknown identifiers are ignored.
+      </description>
+    </key>
+
+    <key name="show-color-picker" type="b">
+      <default>true</default>
+      <summary>Show the colour picker</summary>
+      <description>Show the colour swatch button and its palette popover.</description>
+    </key>
+
+    <key name="show-size-stepper" type="b">
+      <default>true</default>
+      <summary>Show the stroke width stepper</summary>
+      <description>Show the -/+ buttons and the current stroke width.</description>
+    </key>
+
+    <key name="show-fill-toggle" type="b">
+      <default>true</default>
+      <summary>Show the fill toggle</summary>
+      <description>Show the button that switches shapes between outlined and filled.</description>
+    </key>
+
+    <key name="show-undo-redo" type="b">
+      <default>true</default>
+      <summary>Show undo and redo</summary>
+      <description>Show the undo and redo buttons.</description>
+    </key>
+
+    <key name="show-clear" type="b">
+      <default>true</default>
+      <summary>Show clear all</summary>
+      <description>Show the button that removes every annotation.</description>
+    </key>
+
+    <key name="show-tooltips" type="b">
+      <default>true</default>
+      <summary>Show tooltips</summary>
+      <description>Show a descriptive tooltip when hovering a toolbar button.</description>
+    </key>
+
+    <!-- ============ Colores ============ -->
+    <key name="palette" type="as">
+      <default>['#e01b24','#3584e4','#33d17a','#f6d32d','#ff7800','#9141ac','#ffffff','#000000']</default>
+      <summary>Colour palette</summary>
+      <description>
+        Ordered list of colours offered by the picker, as #rrggbb strings.
+        The first entry is used as the default colour.
+      </description>
+    </key>
+
+    <!-- ============ Trazo ============ -->
+    <key name="default-width" type="i">
+      <range min="2" max="48"/>
+      <default>6</default>
+      <summary>Default stroke width</summary>
+      <description>Stroke width, in logical pixels, selected when the capture UI opens.</description>
+    </key>
+
+    <key name="stroke-shadow" type="b">
+      <default>false</default>
+      <summary>Draw a shadow under each stroke</summary>
+      <description>
+        Paint a translucent dark copy under every annotation so it stays legible
+        on both light and dark backgrounds.
+      </description>
+    </key>
+
+    <key name="fill-shapes" type="b">
+      <default>false</default>
+      <summary>Fill shapes by default</summary>
+      <description>Draw rectangles and ellipses filled instead of outlined.</description>
+    </key>
+
+    <!-- ============ Texto ============ -->
+    <key name="text-bold" type="b">
+      <default>false</default>
+      <summary>Bold text annotations</summary>
+      <description>Render text annotations in bold.</description>
+    </key>
+
+    <key name="font-family" type="s">
+      <default>'Sans'</default>
+      <summary>Font family for text annotations</summary>
+      <description>Family name passed to Cairo when rendering text annotations.</description>
+    </key>
+
+    <!-- ============ Contador ============ -->
+    <key name="counter-start" type="i">
+      <range min="0" max="999"/>
+      <default>1</default>
+      <summary>First counter value</summary>
+      <description>Number given to the first counter bubble of each capture.</description>
+    </key>
+
+    <!-- ============ Pixelado ============ -->
+    <key name="pixelate-block" type="i">
+      <range min="4" max="64"/>
+      <default>12</default>
+      <summary>Pixelation block size</summary>
+      <description>Size, in logical pixels, of each block produced by the pixelate tool.</description>
+    </key>
+
+    <!-- ============ Atajos ============ -->
+    <!-- Cadenas de acelerador estilo GTK. Vacío desactiva el atajo. -->
+    <key name="key-tool-pen" type="s"><default>'p'</default>
+      <summary>Pen shortcut</summary><description>Accelerator that selects the pen.</description></key>
+    <key name="key-tool-line" type="s"><default>'l'</default>
+      <summary>Line shortcut</summary><description>Accelerator that selects the line tool.</description></key>
+    <key name="key-tool-arrow" type="s"><default>'a'</default>
+      <summary>Arrow shortcut</summary><description>Accelerator that selects the arrow tool.</description></key>
+    <key name="key-tool-rect" type="s"><default>'r'</default>
+      <summary>Rectangle shortcut</summary><description>Accelerator that selects the rectangle tool.</description></key>
+    <key name="key-tool-ellipse" type="s"><default>'o'</default>
+      <summary>Ellipse shortcut</summary><description>Accelerator that selects the ellipse tool.</description></key>
+    <key name="key-tool-highlighter" type="s"><default>'h'</default>
+      <summary>Highlighter shortcut</summary><description>Accelerator that selects the highlighter.</description></key>
+    <key name="key-tool-text" type="s"><default>'t'</default>
+      <summary>Text shortcut</summary><description>Accelerator that selects the text tool.</description></key>
+    <key name="key-tool-counter" type="s"><default>'n'</default>
+      <summary>Counter shortcut</summary><description>Accelerator that selects the counter tool.</description></key>
+    <key name="key-tool-pixelate" type="s"><default>'x'</default>
+      <summary>Pixelate shortcut</summary><description>Accelerator that selects the pixelate tool.</description></key>
+    <key name="key-undo" type="s"><default>'&lt;Control&gt;z'</default>
+      <summary>Undo shortcut</summary><description>Accelerator that undoes the last annotation.</description></key>
+    <key name="key-redo" type="s"><default>'&lt;Control&gt;&lt;Shift&gt;z'</default>
+      <summary>Redo shortcut</summary><description>Accelerator that redoes the last undone annotation.</description></key>
+    <key name="key-clear" type="s"><default>'Delete'</default>
+      <summary>Clear shortcut</summary><description>Accelerator that removes every annotation.</description></key>
+    <key name="key-cycle-color" type="s"><default>'c'</default>
+      <summary>Cycle colour shortcut</summary><description>Accelerator that moves to the next palette colour.</description></key>
+    <key name="key-increase-size" type="s"><default>'plus'</default>
+      <summary>Increase width shortcut</summary><description>Accelerator that increases the stroke width.</description></key>
+    <key name="key-decrease-size" type="s"><default>'minus'</default>
+      <summary>Decrease width shortcut</summary><description>Accelerator that decreases the stroke width.</description></key>
+    <key name="key-toggle-fill" type="s"><default>'f'</default>
+      <summary>Toggle fill shortcut</summary><description>Accelerator that switches shapes between outlined and filled.</description></key>
+  </schema>
+</schemalist>

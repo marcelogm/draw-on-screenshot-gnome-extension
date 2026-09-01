@@ -152,3 +152,17 @@
     color: #ffffff;
     caret-color: #ffffff;
 }
+
+/* --- Rótulos emergentes de los botones de la barra --- */
+
+.screenshot-draw-tooltip {
+    color: #ffffff;
+    background-color: rgba(28, 28, 32, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.85em;
+    font-weight: 400;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}

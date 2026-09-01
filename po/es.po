@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Draw on Screenshot\n"
 "Report-Msgid-Bugs-To: https://github.com/ricardojparram/draw-on-screenshot-gnome-extension/issues\n"
-"POT-Creation-Date: 2026-09-01 11:39\n"
-"PO-Revision-Date: 2026-09-01 11:39\n"
+"POT-Creation-Date: 2026-09-01 14:05\n"
+"PO-Revision-Date: 2026-09-01 14:05\n"
 "Last-Translator: ricardojparram <ricardo.prxr16@gmail.com>\n"
 "Language-Team: Spanish\n"
 "Language: es\n"
@@ -16,110 +16,416 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/patcher.js:621 src/patcher.js:662
+#: prefs.js:24 prefs.js:46 src/ui/drawingToolbar.js:27
+msgid "Pen"
+msgstr "Lápiz"
+
+#: prefs.js:24
+msgid "Freehand drawing"
+msgstr "Dibujo a mano alzada"
+
+#: prefs.js:25 prefs.js:47 src/ui/drawingToolbar.js:34
+msgid "Line"
+msgstr "Línea"
+
+#: prefs.js:25
+msgid "Straight line, Shift snaps to 45°"
+msgstr "Línea recta; Mayús imanta a 45°"
+
+#: prefs.js:26 prefs.js:48 src/ui/drawingToolbar.js:41
+msgid "Arrow"
+msgstr "Flecha"
+
+#: prefs.js:26
+msgid "Arrow head at the release point"
+msgstr "La punta queda donde se suelta el botón"
+
+#: prefs.js:27 prefs.js:49 src/ui/drawingToolbar.js:48
+msgid "Rectangle"
+msgstr "Rectángulo"
+
+#: prefs.js:27
+msgid "Shift for a square, Ctrl from the centre"
+msgstr "Mayús para un cuadrado, Ctrl desde el centro"
+
+#: prefs.js:28 prefs.js:50 src/ui/drawingToolbar.js:55
+msgid "Ellipse"
+msgstr "Elipse"
+
+#: prefs.js:28
+msgid "Shift for a circle, Ctrl from the centre"
+msgstr "Mayús para un círculo, Ctrl desde el centro"
+
+#: prefs.js:29 prefs.js:51 src/ui/drawingToolbar.js:62
+msgid "Highlighter"
+msgstr "Resaltador"
+
+#: prefs.js:29
+msgid "Wide translucent stroke"
+msgstr "Trazo ancho y translúcido"
+
+#. --- Texto ---
+#: prefs.js:30 prefs.js:52 prefs.js:318 src/ui/drawingToolbar.js:69
+msgid "Text"
+msgstr "Texto"
+
+#: prefs.js:30
+msgid "Click, type and press Enter"
+msgstr "Pulse, escriba y pulse Intro"
+
+#: prefs.js:31 prefs.js:53 src/ui/drawingToolbar.js:76
+msgid "Counter"
+msgstr "Contador"
+
+#: prefs.js:31
+msgid "Numbered bubbles that count up on their own"
+msgstr "Burbujas numeradas que se autoincrementan"
+
+#: prefs.js:32 prefs.js:54 src/ui/drawingToolbar.js:83
+msgid "Pixelate"
+msgstr "Pixelar"
+
+#: prefs.js:32
+msgid "Hide a region of the capture"
+msgstr "Oculta una región de la captura"
+
+#: prefs.js:37
+msgid "Colour picker"
+msgstr "Selector de color"
+
+#: prefs.js:37
+msgid "Swatch button and palette popover"
+msgstr "Botón de muestra y paleta desplegable"
+
+#: prefs.js:38
+msgid "Fill toggle"
+msgstr "Interruptor de relleno"
+
+#: prefs.js:38
+msgid "Switch shapes between outlined and filled"
+msgstr "Cambia las figuras entre contorno y relleno"
+
+#: prefs.js:39
+msgid "Stroke width"
+msgstr "Grosor del trazo"
+
+#: prefs.js:39
+msgid "The − / + buttons and the current width"
+msgstr "Los botones − / + y el grosor actual"
+
+#: prefs.js:40
+msgid "Undo and redo"
+msgstr "Deshacer y rehacer"
+
+#: prefs.js:41 prefs.js:60 src/ui/drawingToolbar.js:372
+msgid "Clear all"
+msgstr "Limpiar todo"
+
+#: prefs.js:42
+msgid "Tooltips"
+msgstr "Rótulos de ayuda"
+
+#: prefs.js:42
+msgid "Explain each button when the pointer rests on it"
+msgstr "Explican cada botón al posar el puntero encima"
+
+#: prefs.js:58 src/ui/drawingToolbar.js:350
+msgid "Undo"
+msgstr "Deshacer"
+
+#: prefs.js:59 src/ui/drawingToolbar.js:360
+msgid "Redo"
+msgstr "Rehacer"
+
+#: prefs.js:61
+msgid "Next colour"
+msgstr "Color siguiente"
+
+#: prefs.js:62 src/ui/drawingToolbar.js:318
+msgid "Thicker stroke"
+msgstr "Trazo más grueso"
+
+#: prefs.js:63 src/ui/drawingToolbar.js:299
+msgid "Thinner stroke"
+msgstr "Trazo más fino"
+
+#: prefs.js:64
+msgid "Toggle fill"
+msgstr "Alternar relleno"
+
+#: prefs.js:107
+msgid "Toolbar"
+msgstr "Barra de herramientas"
+
+#: prefs.js:112 prefs.js:473
+msgid "Tools"
+msgstr "Herramientas"
+
+#: prefs.js:113
+msgid ""
+"Turn a tool off to keep it out of the toolbar. The arrows set the order the buttons appear in."
+msgstr ""
+"Apague una herramienta para dejarla fuera de la barra. Las flechas fijan el orden de los botones."
+
+#: prefs.js:121
+msgid "Controls"
+msgstr "Controles"
+
+#: prefs.js:122
+msgid ""
+"The rest of the toolbar. Hidden controls keep working through their keyboard shortcuts."
+msgstr ""
+"El resto de la barra. Los controles ocultos siguen funcionando por atajo de teclado."
+
+#: prefs.js:174
+msgid "Move left in the toolbar"
+msgstr "Mover a la izquierda en la barra"
+
+#: prefs.js:190
+msgid "Move right in the toolbar"
+msgstr "Mover a la derecha en la barra"
+
+#: prefs.js:246
+msgid "Drawing"
+msgstr "Dibujo"
+
+#: prefs.js:252
+msgid "Palette"
+msgstr "Paleta"
+
+#: prefs.js:253
+msgid ""
+"Colours offered by the picker, in order. The first one is selected when the capture UI opens."
+msgstr ""
+"Colores que ofrece el selector, en orden. El primero es el que se activa al abrir la captura."
+
+#: prefs.js:265
+msgid "Add a colour"
+msgstr "Añadir un color"
+
+#: prefs.js:277
+msgid "Restore the default palette"
+msgstr "Restaurar la paleta predeterminada"
+
+#. --- Trazo ---
+#: prefs.js:290
+msgid "Stroke"
+msgstr "Trazo"
+
+#: prefs.js:294
+msgid "Default width"
+msgstr "Grosor predeterminado"
+
+#: prefs.js:295
+msgid "In pixels. Ctrl + scroll wheel changes it while drawing."
+msgstr "En píxeles. Ctrl + rueda del ratón lo cambia mientras se dibuja."
+
+#: prefs.js:304
+msgid "Fill shapes by default"
+msgstr "Rellenar figuras de forma predeterminada"
+
+#: prefs.js:305
+msgid "Rectangles and ellipses start filled instead of outlined"
+msgstr "Rectángulos y elipses empiezan rellenos en vez de con contorno"
+
+#: prefs.js:311
+msgid "Shadow under annotations"
+msgstr "Sombra bajo las anotaciones"
+
+#: prefs.js:312
+msgid "Keeps them legible over both light and dark backgrounds"
+msgstr "Las mantiene legibles sobre fondos claros y oscuros"
+
+#: prefs.js:322
+msgid "Bold text"
+msgstr "Texto en negrita"
+
+#: prefs.js:323
+msgid "Off by default: text is drawn at normal weight"
+msgstr "Desactivado por defecto: el texto se dibuja con grosor normal"
+
+#: prefs.js:328
+msgid "Font family"
+msgstr "Familia tipográfica"
+
+#. --- Contador y pixelado ---
+#: prefs.js:333
+msgid "Counter and pixelate"
+msgstr "Contador y pixelado"
+
+#: prefs.js:337
+msgid "First counter number"
+msgstr "Primer número del contador"
+
+#: prefs.js:338
+msgid "Each capture starts the sequence again from this value"
+msgstr "Cada captura reinicia la serie en este valor"
+
+#: prefs.js:347
+msgid "Pixelation block size"
+msgstr "Tamaño de bloque del pixelado"
+
+#: prefs.js:348
+msgid "Larger blocks hide more. Applied when the capture is saved."
+msgstr "Los bloques grandes ocultan más. Se aplica al guardar la captura."
+
+#: prefs.js:372
+msgid "Default colour"
+msgstr "Color predeterminado"
+
+#: prefs.js:392
+msgid "Move up"
+msgstr "Subir"
+
+#: prefs.js:405
+msgid "Move down"
+msgstr "Bajar"
+
+#: prefs.js:420
+msgid "Remove this colour"
+msgstr "Quitar este color"
+
+#: prefs.js:468
+msgid "Shortcuts"
+msgstr "Atajos"
+
+#: prefs.js:474
+msgid ""
+"These only apply while the screenshot UI is open. Single letters are fine; they are ignored while you type an annotation."
+msgstr ""
+"Sólo se aplican con la interfaz de captura abierta. Las letras sueltas valen; se ignoran mientras se escribe una anotación."
+
+#: prefs.js:483
+msgid "Actions"
+msgstr "Acciones"
+
+#: prefs.js:494
+msgid "Reset all shortcuts"
+msgstr "Restablecer todos los atajos"
+
+#: prefs.js:495
+msgid "Restore the shortcuts this extension ships with"
+msgstr "Restaura los atajos con los que viene la extensión"
+
+#: prefs.js:498
+msgid "Reset"
+msgstr "Restablecer"
+
+#: prefs.js:520
+msgid "Disabled"
+msgstr "Desactivado"
+
+#: prefs.js:527
+msgid "Disable this shortcut"
+msgstr "Desactivar este atajo"
+
+#: prefs.js:553
+msgid "Set shortcut"
+msgstr "Definir atajo"
+
+#: prefs.js:554
+msgid ""
+"Press the key combination you want to use.\nBackspace disables the shortcut, Escape keeps the current one."
+msgstr ""
+"Pulse la combinación de teclas que quiera usar.\nRetroceso desactiva el atajo, Escape conserva el actual."
+
+#: prefs.js:557
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/patcher.js:724 src/patcher.js:765
 msgid "Screenshot taken"
 msgstr "Captura realizada"
 
-#: src/patcher.js:696
+#: src/patcher.js:799
 msgid "Screenshots"
 msgstr "Capturas de pantalla"
 
-#: src/patcher.js:708
+#: src/patcher.js:811
+#, javascript-format
 msgid "Screenshot From %s"
 msgstr "Captura de %s"
 
-#: src/patcher.js:745
+#: src/patcher.js:848
 msgid "Screen Capture"
 msgstr "Captura de pantalla"
 
-#: src/patcher.js:752
+#: src/patcher.js:855
 msgid "Screenshot captured"
 msgstr "Captura realizada"
 
-#: src/patcher.js:753
+#: src/patcher.js:856
 msgid "You can paste the image from the clipboard"
 msgstr "Puede pegar la imagen desde el portapapeles"
 
-#: src/patcher.js:761
+#: src/patcher.js:864
 msgid "Show in Files"
 msgstr "Mostrar en Archivos"
 
-#: src/core/drawingModel.js:25
-msgid "Red"
-msgstr "Rojo"
+#: src/ui/drawingToolbar.js:28
+msgid "Draw freehand"
+msgstr "Dibuja a mano alzada"
 
-#: src/core/drawingModel.js:26
-msgid "Blue"
-msgstr "Azul"
+#: src/ui/drawingToolbar.js:35
+msgid "Straight line. Hold Shift to snap to 45°"
+msgstr "Línea recta. Mantenga Mayús para imantar a 45°"
 
-#: src/core/drawingModel.js:27
-msgid "Green"
-msgstr "Verde"
+#: src/ui/drawingToolbar.js:42
+msgid "Arrow pointing where you release. Hold Shift to snap to 45°"
+msgstr "La flecha apunta a donde se suelta. Mantenga Mayús para imantar a 45°"
 
-#: src/core/drawingModel.js:28
-msgid "Yellow"
-msgstr "Amarillo"
+#: src/ui/drawingToolbar.js:49
+msgid "Hold Shift for a square, Ctrl to draw from the centre"
+msgstr "Mayús para un cuadrado, Ctrl para dibujar desde el centro"
 
-#: src/core/drawingModel.js:29
-msgid "Orange"
-msgstr "Naranja"
+#: src/ui/drawingToolbar.js:56
+msgid "Hold Shift for a circle, Ctrl to draw from the centre"
+msgstr "Mayús para un círculo, Ctrl para dibujar desde el centro"
 
-#: src/core/drawingModel.js:30
-msgid "Purple"
-msgstr "Violeta"
+#: src/ui/drawingToolbar.js:63
+msgid "Wide translucent stroke that lets the capture show through"
+msgstr "Trazo ancho y translúcido que deja ver la captura"
 
-#: src/core/drawingModel.js:31
-msgid "White"
-msgstr "Blanco"
-
-#: src/core/drawingModel.js:32
-msgid "Black"
-msgstr "Negro"
-
-#: src/ui/drawingToolbar.js:76
-msgid "Pen (P / D)"
-msgstr "Lápiz (P / D)"
+#: src/ui/drawingToolbar.js:70
+msgid "Click, type, then press Enter to place the text"
+msgstr "Pulse, escriba y pulse Intro para colocar el texto"
 
 #: src/ui/drawingToolbar.js:77
-msgid "Line (L)"
-msgstr "Línea (L)"
+msgid "Each click drops the next number in the sequence"
+msgstr "Cada pulsación coloca el siguiente número de la serie"
 
-#: src/ui/drawingToolbar.js:78
-msgid "Arrow (A)"
-msgstr "Flecha (A)"
+#: src/ui/drawingToolbar.js:84
+msgid "Drag over a region to hide it in the saved image"
+msgstr "Arrastre sobre una región para ocultarla en la imagen guardada"
 
-#: src/ui/drawingToolbar.js:79
-msgid "Rectangle (R)"
-msgstr "Rectángulo (R)"
+#: src/ui/drawingToolbar.js:216 src/ui/drawingToolbar.js:224
+msgid "Colour"
+msgstr "Color"
 
-#: src/ui/drawingToolbar.js:80
-msgid "Highlighter (H)"
-msgstr "Resaltador (H)"
+#: src/ui/drawingToolbar.js:224
+msgid "Open the palette; the shortcut cycles through it"
+msgstr "Abre la paleta; el atajo recorre sus colores"
 
-#: src/ui/drawingToolbar.js:81
-msgid "Text (T)"
-msgstr "Texto (T)"
+#: src/ui/drawingToolbar.js:271
+msgid "Fill"
+msgstr "Relleno"
 
-#: src/ui/drawingToolbar.js:110
-msgid "Choose colour (C)"
-msgstr "Elegir color (C)"
+#: src/ui/drawingToolbar.js:272
+msgid "Draw rectangles and ellipses filled instead of outlined"
+msgstr "Dibuja rectángulos y elipses rellenos en vez de con contorno"
 
-#: src/ui/drawingToolbar.js:167
-msgid "Decrease size (-)"
-msgstr "Reducir tamaño (-)"
+#: src/ui/drawingToolbar.js:300 src/ui/drawingToolbar.js:319
+msgid "Also Ctrl + scroll wheel anywhere on screen"
+msgstr "También con Ctrl + rueda en cualquier punto de la pantalla"
 
-#: src/ui/drawingToolbar.js:188
-msgid "Increase size (+)"
-msgstr "Aumentar tamaño (+)"
+#: src/ui/drawingToolbar.js:350
+msgid "Remove the last annotation"
+msgstr "Quita la última anotación"
 
-#: src/ui/drawingToolbar.js:222
-msgid "Undo (Ctrl+Z)"
-msgstr "Deshacer (Ctrl+Z)"
+#: src/ui/drawingToolbar.js:360
+msgid "Put back the annotation you just undid"
+msgstr "Repone la anotación que se acaba de deshacer"
 
-#: src/ui/drawingToolbar.js:237
-msgid "Redo (Ctrl+Shift+Z)"
-msgstr "Rehacer (Ctrl+Mayús+Z)"
-
-#: src/ui/drawingToolbar.js:252
-msgid "Clear all (Delete)"
-msgstr "Limpiar todo (Supr)"
+#: src/ui/drawingToolbar.js:372
+msgid "Remove every annotation; undo brings them back"
+msgstr "Quita todas las anotaciones; deshacer las devuelve"

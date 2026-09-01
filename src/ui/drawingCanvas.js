@@ -3,7 +3,15 @@ import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import cairo from 'gi://cairo';
 import { ToolType } from '../core/drawingModel.js';
+import { luminance } from '../core/settings.js';
 import { logError } from '../core/log.js';
+
+/** Desplazamiento de la sombra bajo el trazo, en px lógicos. */
+const SHADOW_OFFSET = 1.5;
+const SHADOW_ALPHA = 0.45;
+
+/** Herramientas a las que una sombra no aporta nada o directamente estorba. */
+const NO_SHADOW_TOOLS = new Set([ToolType.HIGHLIGHTER, ToolType.PIXELATE]);
 
 /**
  * Renderiza un trazo sobre un contexto de Cairo.
@@ -18,9 +26,41 @@ import { logError } from '../core/log.js';
  * De ahí que la transformación correcta sea `punto * scale - offset`, y no
  * `(punto - offset) * scale`: mezclar ambos espacios desplazaba el dibujo en
  * pantallas HiDPI.
+ *
+ * @param {object} opts
+ * @param {boolean} opts.preview
+ *   `true` mientras se pinta en pantalla. El pixelado sólo tiene vista previa
+ *   aquí: la censura real la aplica el compositor sobre el pixbuf capturado,
+ *   porque desde JS no se pueden leer los píxeles de la pantalla.
  */
-export function renderStroke(cr, stroke, scale = 1.0, offsetX = 0, offsetY = 0) {
+export function renderStroke(cr, stroke, scale = 1.0, offsetX = 0, offsetY = 0, opts = {}) {
     if (!stroke) return;
+
+    const { preview = false, isShadow = false } = opts;
+
+    if (stroke.tool === ToolType.PIXELATE) {
+        if (preview && !isShadow) {
+            renderPixelatePreview(cr, stroke, scale, offsetX, offsetY, opts.pixelateMode);
+        }
+        return;
+    }
+
+    // La sombra es el mismo trazo en negro translúcido, ligeramente desplazado.
+    // Se pinta antes para que quede debajo.
+    if (stroke.shadow && !isShadow && !NO_SHADOW_TOOLS.has(stroke.tool)) {
+        cr.save();
+        try {
+            cr.translate(SHADOW_OFFSET * scale, SHADOW_OFFSET * scale);
+            renderStroke(
+                cr,
+                { ...stroke, color: { r: 0, g: 0, b: 0, a: SHADOW_ALPHA } },
+                scale, offsetX, offsetY,
+                { ...opts, isShadow: true }
+            );
+        } finally {
+            cr.restore();
+        }
+    }
 
     const { color, width, tool, points, start, end, text, fontSize, x, y } = stroke;
     const scaledWidth = width * scale;
@@ -64,7 +104,35 @@ export function renderStroke(cr, stroke, scale = 1.0, offsetX = 0, offsetY = 0) 
             const rh = Math.abs(end.y - start.y) * scale;
 
             cr.rectangle(rx, ry, rw, rh);
-            cr.stroke();
+            if (stroke.fill) {
+                cr.fill();
+            } else {
+                cr.stroke();
+            }
+        } else if (tool === ToolType.ELLIPSE) {
+            if (!start || !end) return;
+
+            const cx = tx((start.x + end.x) / 2);
+            const cy = ty((start.y + end.y) / 2);
+            const rx = Math.abs(end.x - start.x) * scale / 2;
+            const ry = Math.abs(end.y - start.y) * scale / 2;
+
+            if (rx < 0.5 || ry < 0.5) return;
+
+            // Cairo no tiene primitiva de elipse: se deforma un círculo unidad.
+            // La transformación se deshace ANTES de trazar para que el grosor no
+            // herede la deformación y el contorno salga de espesor uniforme.
+            cr.save();
+            cr.translate(cx, cy);
+            cr.scale(rx, ry);
+            cr.arc(0, 0, 1, 0, 2 * Math.PI);
+            cr.restore();
+
+            if (stroke.fill) {
+                cr.fill();
+            } else {
+                cr.stroke();
+            }
         } else if (tool === ToolType.ARROW) {
             if (!start || !end) return;
 
@@ -109,14 +177,122 @@ export function renderStroke(cr, stroke, scale = 1.0, offsetX = 0, offsetY = 0) 
         } else if (tool === ToolType.TEXT) {
             if (!text) return;
 
-            cr.selectFontFace('Sans', cairo.FontSlant.NORMAL, cairo.FontWeight.BOLD);
+            cr.selectFontFace(
+                stroke.fontFamily || 'Sans',
+                cairo.FontSlant.NORMAL,
+                stroke.bold ? cairo.FontWeight.BOLD : cairo.FontWeight.NORMAL
+            );
             cr.setFontSize((fontSize || 22) * scale);
             cr.moveTo(tx(x), ty(y));
             cr.showText(text);
+        } else if (tool === ToolType.COUNTER) {
+            renderCounter(cr, stroke, scale, tx(x), ty(y), isShadow);
         }
     } finally {
         cr.restore();
     }
+}
+
+/**
+ * Burbuja numerada estilo Flameshot: disco del color activo con el número
+ * encima, en blanco o negro según cuál contraste mejor con el relleno.
+ */
+function renderCounter(cr, stroke, scale, cx, cy, isShadow) {
+    const radius = (stroke.radius ?? 14) * scale;
+    const label = String(stroke.value ?? 1);
+
+    cr.arc(cx, cy, radius, 0, 2 * Math.PI);
+    cr.fill();
+
+    // La sombra sólo necesita la silueta del disco: pintar también el número en
+    // negro translúcido lo emborronaría en vez de despegarlo del fondo.
+    if (isShadow) return;
+
+    const ink = luminance(stroke.color) > 0.6
+        ? { r: 0, g: 0, b: 0 }
+        : { r: 1, g: 1, b: 1 };
+
+    cr.setSourceRGBA(ink.r, ink.g, ink.b, 1.0);
+    cr.selectFontFace(
+        stroke.fontFamily || 'Sans',
+        cairo.FontSlant.NORMAL,
+        cairo.FontWeight.BOLD
+    );
+
+    // El número ha de caber sea cual sea su número de cifras: se parte de un
+    // tamaño proporcional al disco y se encoge hasta que las extensiones reales
+    // quepan dentro del diámetro útil.
+    let fontSize = radius * 1.25;
+    let extents = null;
+    for (let i = 0; i < 6; i++) {
+        cr.setFontSize(fontSize);
+        extents = cr.textExtents(label);
+        if (extents.width <= radius * 1.6) break;
+        fontSize *= 0.82;
+    }
+
+    cr.moveTo(
+        cx - extents.width / 2 - extents.xBearing,
+        cy - extents.height / 2 - extents.yBearing
+    );
+    cr.showText(label);
+}
+
+/**
+ * Vista previa del pixelado.
+ *
+ * En modo `overlay` no hay nada que pintar: el mosaico real lo pone
+ * `PixelateLayer` con un shader sobre la pantalla congelada.
+ *
+ * El modo `mosaic` es el respaldo para cuando la interfaz de captura no expone
+ * su imagen congelada: un mosaico gris con la misma retícula que aplicará el
+ * compositor, que al menos deja elegir región y tamaño de bloque.
+ */
+function renderPixelatePreview(cr, stroke, scale, offsetX, offsetY, mode = 'mosaic') {
+    // Con la capa GPU activa el mosaico ya delimita la región por sí mismo, así
+    // que no se dibuja nada: un recuadro encima sólo ensuciaría la censura.
+    if (mode === 'overlay') return;
+
+    const { start, end } = stroke;
+    if (!start || !end) return;
+
+    const x0 = Math.min(start.x, end.x) * scale - offsetX;
+    const y0 = Math.min(start.y, end.y) * scale - offsetY;
+    const w = Math.abs(end.x - start.x) * scale;
+    const h = Math.abs(end.y - start.y) * scale;
+    if (w < 1 || h < 1) return;
+
+    const block = Math.max(4, (stroke.block ?? 12) * scale);
+
+    cr.save();
+    try {
+        cr.rectangle(x0, y0, w, h);
+        cr.clip();
+        renderMosaicFallback(cr, x0, y0, w, h, block);
+    } finally {
+        cr.restore();
+    }
+}
+
+/** Mosaico gris determinista; sólo se usa si no hay capa de pixelado real. */
+function renderMosaicFallback(cr, x0, y0, w, h, block) {
+        const cols = Math.ceil(w / block);
+        const rows = Math.ceil(h / block);
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                // Ruido determinista: el mismo rectángulo produce siempre el
+                // mismo mosaico, así la vista previa no parpadea al repintar.
+                // Un módulo entero dibujaba diagonales muy visibles; el seno
+                // rompe la regularidad sin dejar de ser reproducible.
+                const seeded = Math.sin(row * 12.9898 + col * 78.233) * 43758.5453;
+                const noise = seeded - Math.floor(seeded);
+                const grey = 0.28 + noise * 0.44;
+                cr.setSourceRGBA(grey, grey, grey, 1.0);
+                cr.rectangle(x0 + col * block, y0 + row * block, block, block);
+                cr.fill();
+            }
+        }
 }
 
 /**
@@ -147,6 +323,8 @@ export const DrawingCanvas = GObject.registerClass({
         this._pointerX = 0;
         this._pointerY = 0;
         this._pointerInside = false;
+        // 'overlay': el mosaico real lo pone la capa GPU y aquí sólo va el borde.
+        this._pixelatePreviewMode = 'mosaic';
 
         // Sin herramienta activa el lienzo debe ser INERTE, no sólo ignorar el
         // clic: Clutter entrega el evento al actor reactivo más alto, y devolver
@@ -184,36 +362,62 @@ export const DrawingCanvas = GObject.registerClass({
             cr.paint();
             cr.restore();
 
+            const opts = { preview: true, pixelateMode: this._pixelatePreviewMode };
+
             for (const stroke of this._model.strokes) {
-                renderStroke(cr, stroke, 1.0, offsetX, offsetY);
+                renderStroke(cr, stroke, 1.0, offsetX, offsetY, opts);
             }
 
             if (this._model.currentStroke) {
-                renderStroke(cr, this._model.currentStroke, 1.0, offsetX, offsetY);
+                renderStroke(cr, this._model.currentStroke, 1.0, offsetX, offsetY, opts);
             }
 
-            this._renderBrushPreview(cr, offsetX, offsetY);
+            this._renderToolPreview(cr, offsetX, offsetY);
         } catch (err) {
             logError('Fallo al repintar el lienzo', err);
         }
     }
 
     /**
-     * Círculo que anticipa el grosor del trazo bajo el cursor, al estilo de
-     * Flameshot. Se dibuja con doble contorno claro y oscuro para que se lea
-     * sobre cualquier fondo.
+     * Anticipo bajo el cursor de lo que va a dibujarse: el grosor del trazo al
+     * estilo de Flameshot, o el número que recibirá la próxima burbuja.
      */
-    _renderBrushPreview(cr, offsetX, offsetY) {
+    _renderToolPreview(cr, offsetX, offsetY) {
         if (!this._pointerInside || this._isDrawing) return;
         if (!this._model.hasActiveTool()) return;
-        if (this._model.activeTool === ToolType.TEXT) return;
 
-        const isHighlighter = this._model.activeTool === ToolType.HIGHLIGHTER;
-        const width = isHighlighter ? this._model.activeWidth * 3.5 : this._model.activeWidth;
-        const radius = Math.max(width / 2, 1.5);
+        const tool = this._model.activeTool;
+        if (tool === ToolType.TEXT) return;
 
         const cx = this._pointerX - offsetX;
         const cy = this._pointerY - offsetY;
+
+        if (tool === ToolType.COUNTER) {
+            cr.save();
+            try {
+                const c = this._model.activeColor;
+                cr.setSourceRGBA(c.r, c.g, c.b, 0.55);
+                renderCounter(
+                    cr,
+                    {
+                        value: this._model.nextCounterValue(),
+                        color: this._model.activeColor,
+                        radius: this._model.counterRadius(),
+                        fontFamily: this._model.fontFamily,
+                    },
+                    1.0, cx, cy, false
+                );
+            } finally {
+                cr.restore();
+            }
+            return;
+        }
+
+        const isHighlighter = tool === ToolType.HIGHLIGHTER;
+        const width = isHighlighter ? this._model.activeWidth * 3.5 : this._model.activeWidth;
+        const radius = tool === ToolType.PIXELATE
+            ? Math.max(this._model.pixelateBlock / 2, 3)
+            : Math.max(width / 2, 1.5);
 
         cr.save();
         try {
@@ -236,6 +440,15 @@ export const DrawingCanvas = GObject.registerClass({
         } finally {
             cr.restore();
         }
+    }
+
+    /** Estado de Mayús y Ctrl tal y como lo espera `DrawingModel.updateStroke`. */
+    _modifiersFrom(event) {
+        const state = event.get_state();
+        return {
+            shift: (state & Clutter.ModifierType.SHIFT_MASK) !== 0,
+            ctrl: (state & Clutter.ModifierType.CONTROL_MASK) !== 0,
+        };
     }
 
     vfunc_enter_event(event) {
@@ -266,8 +479,15 @@ export const DrawingCanvas = GObject.registerClass({
                 return Clutter.EVENT_STOP;
             }
 
-            if (this._model.activeTool === ToolType.TEXT) {
+            const tool = this._model.activeTool;
+
+            if (tool === ToolType.TEXT) {
                 this._spawnTextEntry(x, y);
+                return Clutter.EVENT_STOP;
+            }
+
+            if (tool === ToolType.COUNTER) {
+                this._model.addCounterStroke(x, y);
                 return Clutter.EVENT_STOP;
             }
 
@@ -287,7 +507,7 @@ export const DrawingCanvas = GObject.registerClass({
         this._pointerInside = true;
 
         if (this._isDrawing) {
-            this._model.updateStroke(x, y);
+            this._model.updateStroke(x, y, this._modifiersFrom(event));
             return Clutter.EVENT_STOP;
         }
 
@@ -326,6 +546,14 @@ export const DrawingCanvas = GObject.registerClass({
         return Clutter.EVENT_PROPAGATE;
     }
 
+    /**
+     * @param {'overlay'|'mosaic'} mode Quién dibuja la vista previa del pixelado.
+     */
+    setPixelatePreviewMode(mode) {
+        this._pixelatePreviewMode = mode === 'overlay' ? 'overlay' : 'mosaic';
+        this.queue_repaint();
+    }
+
     /** Reposiciona el preview del pincel desde fuera (p. ej. Ctrl + rueda). */
     setPointer(x, y) {
         this._pointerX = x;
@@ -341,10 +569,17 @@ export const DrawingCanvas = GObject.registerClass({
     _spawnTextEntry(x, y) {
         const fontSize = Math.max(18, this._model.activeWidth * 3.5);
         const color = this._model.activeColor.hex || '#e01b24';
+        // El peso ha de fijarse explícitamente: sin él la entrada hereda la
+        // negrita del tema y lo escrito no coincide con lo que se estampa.
+        const weight = this._model.textBold ? 'bold' : 'normal';
+        const family = this._model.fontFamily || 'Sans';
 
         const entry = new St.Entry({
             style_class: 'screenshot-draw-text-entry',
-            style: `font-size: ${fontSize}px; color: ${color};`,
+            // La familia va entrecomillada: sin comillas, un nombre con
+            // espacios («DejaVu Sans») rompe la declaración CSS de St.
+            style: `font-size: ${fontSize}px; color: ${color}; ` +
+                   `font-weight: ${weight}; font-family: "${family}";`,
             can_focus: true,
         });
 

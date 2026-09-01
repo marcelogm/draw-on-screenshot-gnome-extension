@@ -9,10 +9,13 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { DrawingModel, ToolType } from './core/drawingModel.js';
+import { DrawingModel, ToolType, ToolOrder } from './core/drawingModel.js';
 import { DrawingCanvas } from './ui/drawingCanvas.js';
 import { DrawingToolbar } from './ui/drawingToolbar.js';
+import { PixelateLayer } from './ui/pixelateOverlay.js';
+import { TooltipManager } from './ui/tooltip.js';
 import { ScreenshotCompositor } from './core/compositor.js';
+import { parseAccelerator, acceleratorMatches } from './core/settings.js';
 import { logError, logWarning } from './core/log.js';
 
 /**
@@ -21,6 +24,36 @@ import { logError, logWarning } from './core/log.js';
  * encima del panel, así que este hueco lo libra dejando algo de aire.
  */
 const TOOLBAR_PANEL_GAP = 34;
+
+/**
+ * Clave de GSettings de cada atajo y qué hace al dispararse. El valor es una
+ * función del modelo para que añadir una acción no obligue a tocar el
+ * despachador de teclas.
+ */
+const SHORTCUT_ACTIONS = {
+    'key-tool-pen': model => model.setActiveTool(ToolType.PEN),
+    'key-tool-line': model => model.setActiveTool(ToolType.LINE),
+    'key-tool-arrow': model => model.setActiveTool(ToolType.ARROW),
+    'key-tool-rect': model => model.setActiveTool(ToolType.RECT),
+    'key-tool-ellipse': model => model.setActiveTool(ToolType.ELLIPSE),
+    'key-tool-highlighter': model => model.setActiveTool(ToolType.HIGHLIGHTER),
+    'key-tool-text': model => model.setActiveTool(ToolType.TEXT),
+    'key-tool-counter': model => model.setActiveTool(ToolType.COUNTER),
+    'key-tool-pixelate': model => model.setActiveTool(ToolType.PIXELATE),
+    'key-undo': model => model.undo(),
+    'key-redo': model => model.redo(),
+    'key-clear': model => model.clear(),
+    'key-cycle-color': model => model.cycleColor(),
+    'key-increase-size': model => model.increaseSize(),
+    'key-decrease-size': model => model.decreaseSize(),
+    'key-toggle-fill': model => model.toggleFill(),
+};
+
+/** Claves de GSettings que sólo afectan a cómo se construye la barra. */
+const TOOLBAR_KEYS = [
+    'enabled-tools', 'show-color-picker', 'show-size-stepper', 'show-fill-toggle',
+    'show-undo-redo', 'show-clear', 'show-tooltips', 'palette',
+];
 
 /** Campos de ScreenshotUI de los que depende el guardado con anotaciones. */
 const REQUIRED_UI_FIELDS = [
@@ -36,15 +69,22 @@ const REQUIRED_UI_FIELDS = [
 export class ScreenshotPatcher {
     /**
      * @param {string|null} iconsPath Ruta al directorio `icons/` de la extensión.
+     * @param {Gio.Settings|null} settings Preferencias propias de la extensión.
      */
-    constructor(iconsPath = null) {
+    constructor(iconsPath = null, settings = null) {
         this._model = new DrawingModel();
         this._iconsPath = iconsPath;
+        this._settings = settings;
+        this._settingsChangedId = null;
+        this._bindings = new Map();
+        this._prefs = {};
+        this._tooltips = null;
+        this._pixelateLayer = null;
+        this._modelListener = null;
         this._toolbar = null;
         this._drawingCanvas = null;
         this._signals = [];
-        this._stageKeyId = null;
-        this._stageScrollId = null;
+        this._eventHandlers = [];
         this._retryId = null;
         this._canPatchSave = false;
 
@@ -93,9 +133,80 @@ export class ScreenshotPatcher {
                 'en la captura; el guardado nativo queda intacto.');
         }
 
+        this._loadPrefs();
+
+        if (this._settings && !this._settingsChangedId) {
+            this._settingsChangedId = this._settings.connect('changed',
+                (settings, key) => this._onSettingChanged(key));
+        }
+
         this._cleanLeftovers(ui);
         this._createUIComponents(ui);
         this._hookMethods(ui);
+    }
+
+    /**
+     * Lee GSettings una sola vez y deja el resultado listo para el modelo, la
+     * barra y el despachador de atajos. Sin esquema (por ejemplo si la
+     * extensión se ejecuta desde el árbol de fuentes sin compilarlo) se usan
+     * los valores por defecto del propio modelo.
+     */
+    _loadPrefs() {
+        const settings = this._settings;
+
+        const shortcuts = {};
+        this._bindings = new Map();
+
+        if (!settings) {
+            this._prefs = { enabledTools: [...ToolOrder], shortcuts };
+            return;
+        }
+
+        for (const key of Object.keys(SHORTCUT_ACTIONS)) {
+            const accel = settings.get_string(key);
+            shortcuts[key] = accel;
+            const binding = parseAccelerator(accel);
+            if (binding) {
+                this._bindings.set(key, binding);
+            }
+        }
+
+        this._prefs = {
+            enabledTools: settings.get_strv('enabled-tools'),
+            showColorPicker: settings.get_boolean('show-color-picker'),
+            showSizeStepper: settings.get_boolean('show-size-stepper'),
+            showFillToggle: settings.get_boolean('show-fill-toggle'),
+            showUndoRedo: settings.get_boolean('show-undo-redo'),
+            showClear: settings.get_boolean('show-clear'),
+            showTooltips: settings.get_boolean('show-tooltips'),
+            shortcuts,
+        };
+
+        this._model.applySettings({
+            palette: settings.get_strv('palette'),
+            defaultWidth: settings.get_int('default-width'),
+            fillShapes: settings.get_boolean('fill-shapes'),
+            strokeShadow: settings.get_boolean('stroke-shadow'),
+            textBold: settings.get_boolean('text-bold'),
+            fontFamily: settings.get_string('font-family'),
+            counterStart: settings.get_int('counter-start'),
+            pixelateBlock: settings.get_int('pixelate-block'),
+        });
+    }
+
+    /**
+     * Un cambio en preferencias se aplica en caliente. La barra sólo se
+     * reconstruye si cambió algo que afecta a qué botones tiene o cómo se
+     * rotulan; el resto lo absorbe el modelo sin tocar actores.
+     */
+    _onSettingChanged(key) {
+        const rebuild = TOOLBAR_KEYS.includes(key) || key.startsWith('key-');
+        this._loadPrefs();
+
+        if (rebuild) {
+            const ui = Main.screenshotUI;
+            if (ui) this._rebuildToolbar(ui);
+        }
     }
 
     disable() {
@@ -135,10 +246,21 @@ export class ScreenshotPatcher {
         }
         this._signals = [];
 
-        // 4. Devolver la opacidad de los menús, que pudo quedar atenuada
+        // 4. Dejar de escuchar cambios en preferencias
+        if (this._settings && this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
+        }
+
+        // 5. Devolver la opacidad de los menús, que pudo quedar atenuada
         this._restoreMenuOpacity();
 
-        // 5. Destruir componentes visuales
+        // 6. Destruir componentes visuales
+        if (this._tooltips) {
+            this._tooltips.destroy();
+            this._tooltips = null;
+        }
+
         if (this._toolbar) {
             this._toolbar.destroy();
             this._toolbar = null;
@@ -149,44 +271,90 @@ export class ScreenshotPatcher {
             this._drawingCanvas = null;
         }
 
+        if (this._modelListener) {
+            this._model.removeListener(this._modelListener);
+            this._modelListener = null;
+        }
+
+        if (this._pixelateLayer) {
+            this._pixelateLayer.destroy();
+            this._pixelateLayer = null;
+        }
+
         if (ui) {
             this._cleanLeftovers(ui);
         }
     }
 
+    /**
+     * Manejadores de teclado y rueda mientras la interfaz de captura está abierta.
+     *
+     * La fase y el actor importan, y ambos costaron un intento fallido:
+     *
+     *   1. `key-press-event` en el stage es fase de BURBUJA: el evento sólo llega
+     *      ahí si nadie lo consumió antes, y la interfaz nativa de captura se
+     *      queda con las teclas (`p` alterna el puntero, por ejemplo).
+     *   2. Pasar a `captured-event` en el stage tampoco basta: `Main.pushModal`
+     *      instala un `Clutter.Grab` sobre `screenshotUI`, y con un grab activo
+     *      la cadena de propagación arranca en el actor del grab, no en el stage.
+     *      El stage deja de ver el evento por completo.
+     *
+     * Por eso se conecta DENTRO del grab, sobre `screenshotUI`:
+     *   - `captured-event` atrapa lo que va dirigido a sus descendientes (los
+     *     botones del panel), antes de que ellos lo consuman;
+     *   - `key-press-event` cubre el caso en que el destino sea `screenshotUI`
+     *     misma, donde la fase de captura no se emite. Al conectar con `connect()`
+     *     el manejador corre ANTES que el `vfunc_key_press_event` de la clase,
+     *     que es RUN_LAST.
+     *
+     * El stage se mantiene como red de seguridad para el caso sin grab. No hay
+     * riesgo de actuar dos veces: el primero que encaja devuelve `EVENT_STOP` y
+     * corta la propagación.
+     */
     _connectStageHandlers() {
-        if (!this._stageKeyId) {
-            this._stageKeyId = global.stage.connect('key-press-event', (actor, event) =>
-                this._onStageKeyPress(event));
+        if (this._eventHandlers.length > 0) return;
+
+        const onCaptured = (actor, event) => this._onCapturedEvent(event);
+
+        const targets = [Main.screenshotUI, global.stage].filter(Boolean);
+        for (const target of targets) {
+            this._eventHandlers.push([target, target.connect('captured-event', onCaptured)]);
         }
-        // Fase de captura: así Ctrl + rueda funciona esté donde esté el puntero,
-        // sin que el selector de área ni la barra se coman el evento antes.
-        if (!this._stageScrollId) {
-            this._stageScrollId = global.stage.connect('captured-event', (actor, event) =>
-                this._onStageCapturedEvent(event));
+
+        const ui = Main.screenshotUI;
+        if (ui) {
+            this._eventHandlers.push([ui, ui.connect('key-press-event', onCaptured)]);
         }
     }
 
     _disconnectStageHandlers() {
-        for (const key of ['_stageKeyId', '_stageScrollId']) {
-            if (!this[key]) continue;
+        for (const [obj, id] of this._eventHandlers) {
             try {
-                global.stage.disconnect(this[key]);
+                obj.disconnect(id);
             } catch (e) {
                 // ignorar
             }
-            this[key] = null;
         }
+        this._eventHandlers = [];
     }
 
-    /** Ctrl + rueda ajusta el grosor del trazo en cualquier punto de la pantalla. */
-    _onStageCapturedEvent(event) {
-        if (event.type() !== Clutter.EventType.SCROLL) {
-            return Clutter.EVENT_PROPAGATE;
-        }
+    _onCapturedEvent(event) {
         if (!Main.screenshotUI?.visible) {
             return Clutter.EVENT_PROPAGATE;
         }
+
+        const type = event.type();
+        if (type === Clutter.EventType.KEY_PRESS) {
+            return this._onStageKeyPress(event);
+        }
+        if (type === Clutter.EventType.SCROLL) {
+            return this._onStageScroll(event);
+        }
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    /** Ctrl + rueda ajusta el grosor del trazo en cualquier punto de la pantalla. */
+    _onStageScroll(event) {
         if ((event.get_state() & Clutter.ModifierType.CONTROL_MASK) === 0) {
             return Clutter.EVENT_PROPAGATE;
         }
@@ -216,7 +384,9 @@ export class ScreenshotPatcher {
                 for (const child of container.get_children()) {
                     if (child.has_style_class_name &&
                         (child.has_style_class_name('screenshot-draw-toolbar') ||
-                         child.has_style_class_name('screenshot-draw-color-popover'))) {
+                         child.has_style_class_name('screenshot-draw-color-popover') ||
+                         child.has_style_class_name('screenshot-draw-tooltip') ||
+                         child.has_style_class_name('screenshot-draw-pixelate-layer'))) {
                         container.remove_child(child);
                         child.destroy();
                     }
@@ -254,6 +424,15 @@ export class ScreenshotPatcher {
     }
 
     _createUIComponents(ui) {
+        // --- 0. Capa de pixelado ---
+        // Va DEBAJO del lienzo: transforma la pantalla congelada, y las
+        // anotaciones vectoriales tienen que poder dibujarse encima.
+        this._pixelateLayer = new PixelateLayer(this._model);
+        ui.add_child(this._pixelateLayer.build());
+
+        this._modelListener = () => this._pixelateLayer?.sync();
+        this._model.addListener(this._modelListener);
+
         // --- 1. Lienzo de dibujo ---
         // Se recorta al área seleccionada (ver _syncCanvasGeometry) en lugar de
         // cubrir todo el stage: así el selector de área sigue recibiendo eventos
@@ -278,8 +457,42 @@ export class ScreenshotPatcher {
         ui.add_child(this._drawingCanvas);
 
         // --- 2. Barra de herramientas, siempre visible sobre el panel ---
-        this._toolbar = new DrawingToolbar(this._model, this._iconsPath);
-        this._toolbar.visible = false; // se muestra al abrir la UI de captura
+        this._tooltips = new TooltipManager();
+        this._tooltips.setContainer(ui);
+        this._buildToolbar(ui, false);
+
+        // --- 3. Mantener el lienzo alineado con la selección ---
+        if (ui._areaSelector) {
+            const dragStartId = ui._areaSelector.connect('drag-started', () => {
+                this._toolbar?.closePopover();
+                this._setMenuOpacity(100);
+            });
+            const dragEndId = ui._areaSelector.connect('drag-ended', () => {
+                this._setMenuOpacity(255);
+            });
+            this._signals.push([ui._areaSelector, dragStartId], [ui._areaSelector, dragEndId]);
+        }
+
+        for (const button of [ui._selectionButton, ui._screenButton, ui._windowButton]) {
+            if (!button) continue;
+            const id = button.connect('notify::checked', () => this._syncCanvasGeometry());
+            this._signals.push([button, id]);
+        }
+    }
+
+    /**
+     * Crea la barra y la ancla al panel nativo.
+     *
+     * @param {object} ui `Main.screenshotUI`
+     * @param {boolean} visible Estado inicial: al reconstruirla en caliente hay
+     *   que devolverla al estado en que estaba la anterior.
+     */
+    _buildToolbar(ui, visible) {
+        this._tooltips?.setEnabled(this._prefs.showTooltips !== false);
+
+        this._toolbar = new DrawingToolbar(
+            this._model, this._iconsPath, this._prefs, this._tooltips);
+        this._toolbar.visible = visible;
 
         // Anclada al panel nativo mediante constraints: siguen su asignación sola,
         // también durante la animación de apertura. Posicionarla a mano la dejaba
@@ -319,24 +532,36 @@ export class ScreenshotPatcher {
             this._positionColorPopover();
         });
         this._signals.push([this._toolbar, popoverId]);
+    }
 
-        // --- 3. Mantener el lienzo alineado con la selección ---
-        if (ui._areaSelector) {
-            const dragStartId = ui._areaSelector.connect('drag-started', () => {
-                this._toolbar?.closePopover();
-                this._setMenuOpacity(100);
-            });
-            const dragEndId = ui._areaSelector.connect('drag-ended', () => {
-                this._setMenuOpacity(255);
-            });
-            this._signals.push([ui._areaSelector, dragStartId], [ui._areaSelector, dragEndId]);
+    /**
+     * Rehace la barra tras un cambio de preferencias. Los botones dependen de la
+     * configuración en su composición, su orden y sus rótulos, así que sale más
+     * barato y más fiable reconstruirla que ir parcheándola pieza a pieza.
+     */
+    _rebuildToolbar(ui) {
+        const wasVisible = this._toolbar?.visible ?? false;
+
+        this._signals = this._signals.filter(([obj, id]) => {
+            if (obj !== this._toolbar) return true;
+            try {
+                obj.disconnect(id);
+            } catch (e) {
+                // ignorar
+            }
+            return false;
+        });
+
+        this._tooltips?.hide();
+
+        if (this._toolbar) {
+            this._toolbar.get_parent()?.remove_child(this._toolbar);
+            this._toolbar.destroy();
+            this._toolbar = null;
         }
 
-        for (const button of [ui._selectionButton, ui._screenButton, ui._windowButton]) {
-            if (!button) continue;
-            const id = button.connect('notify::checked', () => this._syncCanvasGeometry());
-            this._signals.push([button, id]);
-        }
+        this._buildToolbar(ui, wasVisible);
+        this._raiseActors(ui);
     }
 
     /**
@@ -402,6 +627,18 @@ export class ScreenshotPatcher {
      */
     _raiseActors(ui) {
         try {
+            // La capa de pixelado va justo encima de la pantalla congelada y
+            // DEBAJO del selector de área: así el atenuado del selector cae
+            // también sobre la zona censurada y no queda un recuadro más
+            // brillante que el resto.
+            const layer = this._pixelateLayer?.actor;
+            if (layer?.get_parent() === ui) {
+                if (ui._stageScreenshot?.get_parent() === ui) {
+                    ui.set_child_above_sibling(layer, ui._stageScreenshot);
+                } else {
+                    ui.set_child_below_sibling(layer, null);
+                }
+            }
             if (this._drawingCanvas?.get_parent() === ui) {
                 ui.set_child_above_sibling(this._drawingCanvas, null);
             }
@@ -417,11 +654,12 @@ export class ScreenshotPatcher {
         }
     }
 
+    /**
+     * Corre en fase de captura, así que sólo puede consumir el evento cuando
+     * hay una coincidencia exacta: cualquier otra tecla ha de seguir su camino
+     * hasta la interfaz nativa (Escape, Intro, flechas del selector de área).
+     */
     _onStageKeyPress(event) {
-        if (!Main.screenshotUI || !Main.screenshotUI.visible) {
-            return Clutter.EVENT_PROPAGATE;
-        }
-
         // No secuestrar teclas mientras se escribe una anotación de texto: los
         // atajos son de una sola letra y se comerían lo que el usuario teclea.
         if (this._drawingCanvas?.hasTextEntry) {
@@ -434,81 +672,16 @@ export class ScreenshotPatcher {
 
         const symbol = event.get_key_symbol();
         const state = event.get_state();
-        const isCtrl = (state & Clutter.ModifierType.CONTROL_MASK) !== 0;
-        const isShift = (state & Clutter.ModifierType.SHIFT_MASK) !== 0;
 
-        // Ctrl+Shift+Z / Ctrl+Y -> Rehacer
-        if (isCtrl && ((isShift && (symbol === Clutter.KEY_z || symbol === Clutter.KEY_Z)) ||
-                       symbol === Clutter.KEY_y || symbol === Clutter.KEY_Y)) {
-            this._model.redo();
+        for (const [key, binding] of this._bindings) {
+            if (!acceleratorMatches(binding, symbol, state)) continue;
+
+            const action = SHORTCUT_ACTIONS[key];
+            if (!action) continue;
+
+            this._tooltips?.hide();
+            action(this._model);
             return Clutter.EVENT_STOP;
-        }
-
-        // Ctrl+Z -> Deshacer
-        if (isCtrl && (symbol === Clutter.KEY_z || symbol === Clutter.KEY_Z)) {
-            this._model.undo();
-            return Clutter.EVENT_STOP;
-        }
-
-        // Supr / Retroceso -> Limpiar todo
-        if (symbol === Clutter.KEY_Delete || symbol === Clutter.KEY_BackSpace) {
-            this._model.clear();
-            return Clutter.EVENT_STOP;
-        }
-
-        if (isCtrl) {
-            return Clutter.EVENT_PROPAGATE;
-        }
-
-        switch (symbol) {
-            case Clutter.KEY_p:
-            case Clutter.KEY_P:
-            case Clutter.KEY_d:
-            case Clutter.KEY_D:
-                this._model.setActiveTool(ToolType.PEN);
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_l:
-            case Clutter.KEY_L:
-                this._model.setActiveTool(ToolType.LINE);
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_a:
-            case Clutter.KEY_A:
-                this._model.setActiveTool(ToolType.ARROW);
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_r:
-            case Clutter.KEY_R:
-                this._model.setActiveTool(ToolType.RECT);
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_h:
-            case Clutter.KEY_H:
-                this._model.setActiveTool(ToolType.HIGHLIGHTER);
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_t:
-            case Clutter.KEY_T:
-                this._model.setActiveTool(ToolType.TEXT);
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_c:
-            case Clutter.KEY_C:
-                this._model.cycleColor();
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_plus:
-            case Clutter.KEY_equal:
-            case Clutter.KEY_KP_Add:
-                this._model.increaseSize();
-                return Clutter.EVENT_STOP;
-
-            case Clutter.KEY_minus:
-            case Clutter.KEY_underscore:
-            case Clutter.KEY_KP_Subtract:
-                this._model.decreaseSize();
-                return Clutter.EVENT_STOP;
         }
 
         return Clutter.EVENT_PROPAGATE;
@@ -555,6 +728,14 @@ export class ScreenshotPatcher {
 
             const result = await self._origOpen.call(this, mode);
             self._syncCanvasGeometry();
+
+            // La imagen congelada sólo existe una vez abierta la interfaz, y se
+            // renueva en cada captura.
+            self._pixelateLayer?.refreshSource();
+            self._drawingCanvas?.setPixelatePreviewMode(
+                self._pixelateLayer?.available ? 'overlay' : 'mosaic');
+            self._pixelateLayer?.sync();
+
             return result;
         };
 
@@ -562,6 +743,8 @@ export class ScreenshotPatcher {
         ui.close = function () {
             self._disconnectStageHandlers();
 
+            self._tooltips?.hide();
+            self._pixelateLayer?.hide();
             self._toolbar?.closePopover();
             self._drawingCanvas?.cancelTextEntry();
             if (self._toolbar) self._toolbar.visible = false;
