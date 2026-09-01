@@ -44,7 +44,7 @@ Compatible con **GNOME Shell 45, 46, 47, 48, 49 y 50**.
 
 1. Cloná o enlazá este repositorio en la carpeta de extensiones de GNOME:
    ```bash
-   git clone https://github.com/ricardojparram/gnome-screenshot-draw.git ~/.local/share/gnome-shell/extensions/draw-on-screenshot@ricardojparram
+   git clone https://github.com/ricardojparram/draw-on-screenshot-gnome-extension.git ~/.local/share/gnome-shell/extensions/draw-on-screenshot@ricardojparram
    ```
 
 2. Recargá la sesión de GNOME:
