@@ -1,6 +1,6 @@
 # Draw on Screenshot (GNOME Shell Extension)
 
-Dibuja y anota directamente sobre la interfaz nativa interactiva de captura de pantalla de GNOME (`Main.screenshotUI`) al estilo **Lightshot**, con herramientas vectoriales, atajos de teclado, paleta de colores con popover, control de grosor y atenuación dinámica de menús.
+Dibuja y anota directamente sobre la interfaz nativa interactiva de captura de pantalla de GNOME (`Main.screenshotUI`) al estilo **Lightshot**, con herramientas vectoriales, atajos de teclado, paleta de colores desplegable, control de grosor y atenuación dinámica de menús.
 
 Compatible con **GNOME Shell 45, 46, 47, 48, 49 y 50**.
 
@@ -8,18 +8,43 @@ Compatible con **GNOME Shell 45, 46, 47, 48, 49 y 50**.
 
 ## ✨ Características
 
-- ✏️ **Lápiz Libre (Pen)**: Trazo fluido a mano alzada (`P` / `D`).
-- 📏 **Línea Recta (Line)**: Trazado limpio de punto a punto (`L`).
-- ↗️ **Flecha Geométrica (Arrow)**: Flecha con punta sólida sin sobrepasar el cuerpo (`A`).
-- 🔲 **Rectángulo (Rect)**: Recuadro vectorial (`R`).
-- 🖍️ **Resaltador (Highlighter)**: Marcador translúcido para destacar texto (`H`).
-- 🔤 **Texto Interactivo (Text)**: Entrada de texto en pantalla con `Enter` para confirmar y `Esc` para cancelar (`T`).
-- 🎨 **Selector de Color Compacto con Popover**: Botón único con paleta de 8 colores desplegable (`C` para alternar colores).
-- 📏 **Controlador de Tamaño de Trazo**: Botones `[-]` y `[+]` con soporte de **scroll del ratón** para regular el grosor al vuelo (`+` / `-`).
-- ↩️ **Deshacer Global (`Ctrl + Z`)**: Reversión paso a paso de los trazos.
-- 🗑️ **Limpiar Lienzo (`Supr` / `Backspace`)**: Borrado total.
-- 🌫️ **Atenuación Dinámica (Fade Opacity)**: Los menús se vuelven automáticamente translúcidos (`opacity: 60`) mientras dibujas para no obstruir el contenido debajo.
-- 🚀 **100% Nativo & HiDPI**: Compositing 2D directo con Cairo sobre el framebuffer antes de guardar en disco o copiar al portapapeles.
+- ✏️ **Lápiz libre**: trazo fluido a mano alzada (`P` / `D`).
+- 📏 **Línea recta**: punto a punto (`L`).
+- ↗️ **Flecha**: punta sólida que no sobrepasa el cuerpo (`A`).
+- 🔲 **Rectángulo**: recuadro vectorial sin relleno (`R`).
+- 🖍️ **Resaltador**: marcador translúcido (`H`).
+- 🔤 **Texto**: entrada en pantalla, `Enter` confirma y `Esc` cancela (`T`).
+- 🎨 **Paleta flotante**: botón compacto con 8 colores (`C` para rotar). Se abre como
+  overlay sobre el stage, sin ensanchar la barra.
+- 📏 **Grosor de trazo**: botones `[-]` / `[+]`, rueda del ratón, y `Ctrl` + rueda
+  en cualquier punto de la pantalla.
+- 🎯 **Preview del pincel**: círculo bajo el cursor con el grosor y color reales.
+- ↩️ **Deshacer y rehacer**: `Ctrl+Z` y `Ctrl+Shift+Z`.
+- 🗑️ **Limpiar lienzo** (`Supr` / `Retroceso`), reversible con deshacer.
+- 🌫️ **Atenuación dinámica**: los menús se vuelven translúcidos mientras dibujás.
+- 🚀 **Nativo y HiDPI**: compositing 2D con Cairo antes de guardar en disco o copiar al portapapeles.
+
+La barra de dibujo **está siempre visible** mientras la UI de captura está abierta,
+centrada justo encima del panel nativo de modos.
+
+**Ninguna herramienta viene activada de fábrica.** Mientras no elijas una, el
+lienzo es inerte y la captura se comporta exactamente como la nativa: si sólo
+querés capturar, no hay nada que esquivar. Al pulsar una herramienta el lienzo se
+activa; al volver a pulsarla se desactiva.
+
+### Cómo convive el dibujo con la selección de área
+
+El lienzo cubre **toda la pantalla**: se puede dibujar donde sea, también fuera del
+área seleccionada.
+
+Para que eso no deje inservible al selector de área nativo, el lienzo sólo es
+reactivo cuando hay una herramienta activa. Sin herramienta seleccionada el
+lienzo es completamente inerte y los clics llegan al selector como siempre.
+
+Esto importa a nivel técnico: en Clutter el evento se entrega al actor reactivo
+más alto, y devolver `EVENT_PROPAGATE` lo pasa al **padre**, nunca a un hermano
+que esté debajo. Un lienzo reactivo a pantalla completa no puede devolverle el
+evento al selector; sólo dejando de ser reactivo se consigue.
 
 ---
 
@@ -27,34 +52,79 @@ Compatible con **GNOME Shell 45, 46, 47, 48, 49 y 50**.
 
 | Atajo | Acción |
 | :--- | :--- |
-| **`P`** o **`D`** | Activar Lápiz libre |
-| **`L`** | Activar Línea recta |
-| **`A`** | Activar Flecha |
-| **`R`** | Activar Rectángulo |
-| **`H`** | Activar Resaltador |
-| **`T`** | Activar Texto |
-| **`C`** | Alternar color siguiente |
-| **`+` / `-`** | Aumentar / Disminuir grosor |
-| **`Ctrl + Z`** | Deshacer último trazo |
-| **`Supr` / `Backspace`** | Limpiar todo |
+| **`P`** o **`D`** | Lápiz libre |
+| **`L`** | Línea recta |
+| **`A`** | Flecha |
+| **`R`** | Rectángulo |
+| **`H`** | Resaltador |
+| **`T`** | Texto |
+| **`C`** | Color siguiente |
+| **`+`** / **`-`** | Aumentar / disminuir grosor |
+| **`Ctrl`** + **rueda** | Aumentar / disminuir grosor |
+| **`Ctrl`** + **`Z`** | Deshacer |
+| **`Ctrl`** + **`Shift`** + **`Z`** (o **`Ctrl`** + **`Y`**) | Rehacer |
+| **`Supr`** / **`Retroceso`** | Limpiar todo |
+
+Los atajos de una sola letra se desactivan mientras escribís una anotación de texto.
 
 ---
 
-## 📦 Instalación Local
+## 📦 Instalación
 
-1. Cloná o enlazá este repositorio en la carpeta de extensiones de GNOME:
-   ```bash
-   git clone https://github.com/ricardojparram/draw-on-screenshot-gnome-extension.git ~/.local/share/gnome-shell/extensions/draw-on-screenshot@ricardojparram
-   ```
+```bash
+git clone https://github.com/ricardojparram/draw-on-screenshot-gnome-extension.git \
+  ~/.local/share/gnome-shell/extensions/draw-on-screenshot@ricardojparram
+gnome-extensions enable draw-on-screenshot@ricardojparram
+```
 
-2. Recargá la sesión de GNOME:
-   - **Wayland**: Cerrá sesión (Log Out) y volvé a entrar.
-   - **X11**: Presioná `Alt + F2`, escribí `r` y presioná `Enter`.
+Recargá la sesión de GNOME:
 
-3. Habilitá la extensión:
-   ```bash
-   gnome-extensions enable draw-on-screenshot@ricardojparram
-   ```
+- **X11**: `Alt` + `F2`, escribí `r`, `Enter`.
+- **Wayland**: cerrá sesión y volvé a entrar — o usá el shell anidado que se
+  describe abajo, que no requiere logout.
+
+---
+
+## 🛠️ Desarrollo en Wayland sin cerrar sesión
+
+En Wayland no existe `Alt+F2` → `r`. En GNOME 50 el modo anidado es el **devkit**,
+que vive en un paquete aparte:
+
+```bash
+sudo dnf install mutter-devkit        # Fedora
+```
+
+Sin ese binario, `gnome-shell --devkit` avisa `Failed to launch devkit` y no abre
+ventana; y `gnome-shell --wayland` a secas intenta tomar la sesión real y aborta
+con `EBUSY`. No hay otra vía de anidado.
+
+Enlazá el repo a la carpeta de extensiones para que el shell lea tus ediciones:
+
+```bash
+ln -sfn "$PWD" ~/.local/share/gnome-shell/extensions/draw-on-screenshot@ricardojparram
+```
+
+Para una sesión de pruebas aislada, que no toque el dconf ni las extensiones de tu
+escritorio diario:
+
+```bash
+DEV=~/.local/share/gs-dev
+mkdir -p "$DEV/data/gnome-shell/extensions" "$DEV/config"
+ln -sfn "$PWD" "$DEV/data/gnome-shell/extensions/draw-on-screenshot@ricardojparram"
+
+XDG_DATA_HOME="$DEV/data" XDG_CONFIG_HOME="$DEV/config" \
+  dbus-run-session -- sh -c '
+    gsettings set org.gnome.shell disable-user-extensions false
+    gsettings set org.gnome.shell enabled-extensions "[\"draw-on-screenshot@ricardojparram\"]"
+    exec gnome-shell --devkit --wayland
+  '
+```
+
+Ciclo: editar → cerrar la ventana anidada → relanzar. Logs en otra terminal:
+
+```bash
+journalctl -f -o cat /usr/bin/gnome-shell
+```
 
 ---
 
@@ -62,17 +132,39 @@ Compatible con **GNOME Shell 45, 46, 47, 48, 49 y 50**.
 
 ```
 ├── metadata.json                 # Metadatos y versiones soportadas
-├── stylesheet.css                # Estilos nativos GNOME Adwaita Dark
-├── extension.js                  # Entrypoint del ciclo de vida (Extension class)
+├── stylesheet.css                # Estilos Adwaita Dark
+├── extension.js                  # Entrypoint del ciclo de vida
+├── icons/                        # Iconos simbólicos propios (flecha, línea, rect…)
 └── src/
     ├── core/
-    │   ├── drawingModel.js       # Modelo de estado, herramientas, colores y pila Undo
+    │   ├── drawingModel.js       # Estado, herramientas, colores, undo/redo
     │   └── compositor.js         # Compositor Cairo sobre GdkPixbuf
     ├── ui/
-    │   ├── drawingCanvas.js      # St.DrawingArea interactivo con renderizado Cairo
-    │   └── drawingToolbar.js     # Barra flotante con herramientas y popovers
-    └── patcher.js                # Interceptor de Main.screenshotUI y router de eventos
+    │   ├── drawingCanvas.js      # St.DrawingArea interactivo + renderStroke()
+    │   └── drawingToolbar.js     # Barra de herramientas
+    └── patcher.js                # Interceptor de Main.screenshotUI
 ```
+
+### Sistemas de coordenadas
+
+Los trazos se guardan **siempre en coordenadas lógicas del stage**. Al estampar:
+
+```
+destino = punto * scale - offset
+```
+
+donde `offset` ya viene en **píxeles de buffer** (así lo devuelve
+`ScreenshotUI._getSelectedGeometry(true)`, que multiplica por `_scale`). Para
+capturas de ventana el origen es el *buffer rect* de la ventana por su
+`bufferScale`, no el origen del stage.
+
+### Nota de fragilidad
+
+`_saveScreenshot` se sobrescribe replicando lógica interna del Shell. Si una
+versión futura cambia esos campos, la extensión lo detecta al habilitarse
+(`REQUIRED_UI_FIELDS`) y deja el guardado nativo intacto en lugar de romperlo.
+Si el compositing falla en tiempo de ejecución, se guarda la captura **sin**
+anotaciones antes que perderla.
 
 ---
 

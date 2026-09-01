@@ -26,6 +26,9 @@ export const ColorPalette = [
 
 export const AvailableSizes = [2, 3, 4, 6, 8, 12, 16, 24, 32];
 
+/** Distancia mínima entre puntos consecutivos de un trazo libre, en px lógicos. */
+const MIN_POINT_DISTANCE = 2;
+
 /**
  * Modelo de estado del lienzo de dibujo
  */
@@ -33,9 +36,10 @@ export class DrawingModel {
     constructor() {
         this.strokes = [];
         this.currentStroke = null;
-        this.activeTool = ToolType.PEN;
+        this.activeTool = null;
         this.activeColor = ColorPalette[0]; // Rojo por defecto
         this.activeWidth = 6;
+        this._redoStack = [];
         this._listeners = new Set();
     }
 
@@ -65,6 +69,18 @@ export class DrawingModel {
             this.activeTool = tool;
             this._notify();
         }
+    }
+
+    /**
+     * Alterna una herramienta: volver a pulsar la activa la desactiva y deja el
+     * lienzo inerte, de modo que se pueda seguir usando el selector de área.
+     */
+    toggleTool(tool) {
+        this.setActiveTool(this.activeTool === tool ? null : tool);
+    }
+
+    hasActiveTool() {
+        return this.activeTool !== null;
     }
 
     setActiveColor(color) {
@@ -118,16 +134,16 @@ export class DrawingModel {
             a: isHighlighter ? 0.35 : (this.activeColor.a ?? 1.0),
         };
         const width = isHighlighter ? this.activeWidth * 3.5 : this.activeWidth;
-        const fontSize = Math.max(16, this.activeWidth * 3.2);
+        const isFreehand = this.activeTool === ToolType.PEN || isHighlighter;
 
         this.currentStroke = {
             tool: this.activeTool,
             color,
             width,
-            fontSize,
             start: { x, y },
             end: { x, y },
-            points: [{ x, y }],
+            // Line/Rect/Arrow sólo usan start/end: no acumulan puntos.
+            points: isFreehand ? [{ x, y }] : null,
         };
         this._notify();
     }
@@ -136,17 +152,26 @@ export class DrawingModel {
         if (!this.currentStroke) return;
 
         this.currentStroke.end = { x, y };
-        this.currentStroke.points.push({ x, y });
+
+        const points = this.currentStroke.points;
+        if (points) {
+            // Descartar puntos casi coincidentes: reduce el coste de repintado.
+            const last = points[points.length - 1];
+            if (Math.hypot(x - last.x, y - last.y) < MIN_POINT_DISTANCE) {
+                return;
+            }
+            points.push({ x, y });
+        }
+
         this._notify();
     }
 
     endStroke() {
         if (!this.currentStroke) return;
 
-        if (this.currentStroke.points.length > 0) {
-            this.strokes.push(this.currentStroke);
-        }
+        this.strokes.push(this.currentStroke);
         this.currentStroke = null;
+        this._redoStack = [];
         this._notify();
     }
 
@@ -164,6 +189,7 @@ export class DrawingModel {
             x,
             y,
         });
+        this._redoStack = [];
         this._notify();
     }
 
@@ -171,14 +197,44 @@ export class DrawingModel {
         if (this.currentStroke) {
             this.currentStroke = null;
         } else if (this.strokes.length > 0) {
-            this.strokes.pop();
+            this._redoStack.push(this.strokes.pop());
         }
         this._notify();
     }
 
+    redo() {
+        if (this._redoStack.length === 0) return;
+        this.strokes.push(this._redoStack.pop());
+        this._notify();
+    }
+
+    canUndo() {
+        return this.strokes.length > 0 || this.currentStroke !== null;
+    }
+
+    canRedo() {
+        return this._redoStack.length > 0;
+    }
+
+    /**
+     * Vacía el lienzo. Los trazos quedan en la pila de rehacer, en orden inverso,
+     * de modo que rehacer los restituye uno a uno en su orden original de pintado.
+     */
     clear() {
+        if (this.strokes.length > 0) {
+            this._redoStack = [...this.strokes].reverse();
+        }
         this.strokes = [];
         this.currentStroke = null;
+        this._notify();
+    }
+
+    /** Reinicia el modelo por completo, sin conservar historial. */
+    reset() {
+        this.strokes = [];
+        this.currentStroke = null;
+        this._redoStack = [];
+        this.activeTool = null;
         this._notify();
     }
 

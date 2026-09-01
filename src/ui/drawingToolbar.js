@@ -1,11 +1,22 @@
 import St from 'gi://St';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import { ToolType, ColorPalette } from '../core/drawingModel.js';
 
-export const DrawingToolbar = GObject.registerClass(
-class DrawingToolbar extends St.BoxLayout {
-    _init(model, params = {}) {
+export const DrawingToolbar = GObject.registerClass({
+    GTypeName: 'ScreenshotDrawingToolbar',
+    Signals: {
+        'color-popover-toggled': {},
+    },
+}, class DrawingToolbar extends St.BoxLayout {
+    /**
+     * @param {DrawingModel} model
+     * @param {string|null} iconsPath Ruta al directorio `icons/` de la extensión.
+     * @param {object} params
+     */
+    _init(model, iconsPath = null, params = {}) {
         super._init({
             style_class: 'screenshot-draw-toolbar',
             orientation: Clutter.Orientation.HORIZONTAL,
@@ -18,16 +29,38 @@ class DrawingToolbar extends St.BoxLayout {
         });
 
         this._model = model;
+        this._iconsPath = iconsPath;
         this._toolButtons = new Map();
         this._colorPopover = null;
+        this._colorButton = null;
         this._colorPreviewSwatch = null;
         this._sizeLabel = null;
+        this._undoBtn = null;
+        this._redoBtn = null;
 
         this._buildUI();
 
         this._modelListener = () => this._syncState();
         this._model.addListener(this._modelListener);
         this._syncState();
+    }
+
+    /**
+     * Construye un St.Icon usando el SVG propio de la extensión cuando existe,
+     * y cayendo al icono del tema si no.
+     */
+    _makeIcon(customName, themeFallback, size) {
+        if (this._iconsPath && customName) {
+            const path = GLib.build_filenamev([this._iconsPath, `${customName}.svg`]);
+            const file = Gio.File.new_for_path(path);
+            if (file.query_exists(null)) {
+                return new St.Icon({
+                    gicon: new Gio.FileIcon({ file }),
+                    icon_size: size,
+                });
+            }
+        }
+        return new St.Icon({ icon_name: themeFallback, icon_size: size });
     }
 
     _createSeparator() {
@@ -37,14 +70,14 @@ class DrawingToolbar extends St.BoxLayout {
     }
 
     _buildUI() {
-        // --- 1. Herramientas Lightshot con Iconos Exactos ---
+        // --- 1. Herramientas ---
         const tools = [
-            { id: ToolType.PEN, icon: 'document-edit-symbolic', tooltip: 'Lápiz (P / D)' },
-            { id: ToolType.LINE, icon: 'format-text-direction-ltr-symbolic', tooltip: 'Línea (L)' },
-            { id: ToolType.ARROW, icon: 'go-next-symbolic', tooltip: 'Flecha (A)' },
-            { id: ToolType.RECT, icon: 'media-playback-stop-symbolic', tooltip: 'Rectángulo (R)' }, // Cuadrado limpio
-            { id: ToolType.HIGHLIGHTER, icon: 'format-text-bold-symbolic', tooltip: 'Resaltador (H)' }, // Marcador limpio
-            { id: ToolType.TEXT, icon: 'insert-text-symbolic', tooltip: 'Texto (T)' },
+            { id: ToolType.PEN, icon: 'dos-pen-symbolic', fallback: 'document-edit-symbolic', tooltip: 'Lápiz (P / D)' },
+            { id: ToolType.LINE, icon: 'dos-line-symbolic', fallback: 'draw-line-symbolic', tooltip: 'Línea (L)' },
+            { id: ToolType.ARROW, icon: 'dos-arrow-symbolic', fallback: 'go-next-symbolic', tooltip: 'Flecha (A)' },
+            { id: ToolType.RECT, icon: 'dos-rect-symbolic', fallback: 'checkbox-symbolic', tooltip: 'Rectángulo (R)' },
+            { id: ToolType.HIGHLIGHTER, icon: 'dos-highlighter-symbolic', fallback: 'edit-select-all-symbolic', tooltip: 'Resaltador (H)' },
+            { id: ToolType.TEXT, icon: 'dos-text-symbolic', fallback: 'insert-text-symbolic', tooltip: 'Texto (T)' },
         ];
 
         for (const tool of tools) {
@@ -52,16 +85,14 @@ class DrawingToolbar extends St.BoxLayout {
                 style_class: 'screenshot-draw-tool-button',
                 can_focus: true,
                 track_hover: true,
+                toggle_mode: true,
                 accessible_name: tool.tooltip,
             });
 
-            btn.set_child(new St.Icon({
-                icon_name: tool.icon,
-                icon_size: 16,
-            }));
+            btn.set_child(this._makeIcon(tool.icon, tool.fallback, 16));
 
             btn.connect('clicked', () => {
-                this._model.setActiveTool(tool.id);
+                this._model.toggleTool(tool.id);
             });
 
             this.add_child(btn);
@@ -70,18 +101,12 @@ class DrawingToolbar extends St.BoxLayout {
 
         this.add_child(this._createSeparator());
 
-        // --- 2. Selector de Color Único con Popover / Colorpicker ---
-        const colorPickerContainer = new St.BoxLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
-            y_align: Clutter.ActorAlign.CENTER,
-            reactive: true,
-        });
-
+        // --- 2. Selector de color: botón compacto + paleta desplegable ---
         const colorBtn = new St.Button({
             style_class: 'screenshot-draw-color-picker-btn',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Elegir Color (C)',
+            accessible_name: 'Elegir color (C)',
         });
 
         this._colorPreviewSwatch = new St.Widget({
@@ -89,7 +114,10 @@ class DrawingToolbar extends St.BoxLayout {
         });
         colorBtn.set_child(this._colorPreviewSwatch);
 
-        // Popover con la paleta de colores flotante
+        this._colorButton = colorBtn;
+
+        // Se construye aquí pero NO se añade a la barra: el patcher lo cuelga
+        // del stage y lo posiciona, para que abrirlo no reacomode la barra.
         this._colorPopover = new St.BoxLayout({
             style_class: 'screenshot-draw-color-popover',
             orientation: Clutter.Orientation.HORIZONTAL,
@@ -116,15 +144,14 @@ class DrawingToolbar extends St.BoxLayout {
 
         colorBtn.connect('clicked', () => {
             this._colorPopover.visible = !this._colorPopover.visible;
+            this.emit('color-popover-toggled');
         });
 
-        colorPickerContainer.add_child(colorBtn);
-        colorPickerContainer.add_child(this._colorPopover);
-        this.add_child(colorPickerContainer);
+        this.add_child(colorBtn);
 
         this.add_child(this._createSeparator());
 
-        // --- 3. Controlador de Tamaño (Subir / Bajar con Botones y Scroll) ---
+        // --- 3. Grosor de trazo ---
         const sizeContainer = new St.BoxLayout({
             orientation: Clutter.Orientation.HORIZONTAL,
             y_align: Clutter.ActorAlign.CENTER,
@@ -167,7 +194,6 @@ class DrawingToolbar extends St.BoxLayout {
             this._model.increaseSize();
         });
 
-        // Soporte de rueda del mouse sobre el control de tamaño
         sizeContainer.connect('scroll-event', (actor, event) => {
             const dir = event.get_scroll_direction();
             if (dir === Clutter.ScrollDirection.UP) {
@@ -187,27 +213,42 @@ class DrawingToolbar extends St.BoxLayout {
 
         this.add_child(this._createSeparator());
 
-        // --- 4. Acciones: Deshacer (Ctrl+Z) y Limpiar ---
-        const undoBtn = new St.Button({
+        // --- 4. Deshacer / Rehacer / Limpiar ---
+        this._undoBtn = new St.Button({
             style_class: 'screenshot-draw-tool-button',
             can_focus: true,
             track_hover: true,
             accessible_name: 'Deshacer (Ctrl+Z)',
         });
-        undoBtn.set_child(new St.Icon({
+        this._undoBtn.set_child(new St.Icon({
             icon_name: 'edit-undo-symbolic',
             icon_size: 16,
         }));
-        undoBtn.connect('clicked', () => {
+        this._undoBtn.connect('clicked', () => {
             this._model.undo();
         });
-        this.add_child(undoBtn);
+        this.add_child(this._undoBtn);
+
+        this._redoBtn = new St.Button({
+            style_class: 'screenshot-draw-tool-button',
+            can_focus: true,
+            track_hover: true,
+            accessible_name: 'Rehacer (Ctrl+Shift+Z)',
+        });
+        this._redoBtn.set_child(new St.Icon({
+            icon_name: 'edit-redo-symbolic',
+            icon_size: 16,
+        }));
+        this._redoBtn.connect('clicked', () => {
+            this._model.redo();
+        });
+        this.add_child(this._redoBtn);
 
         const clearBtn = new St.Button({
             style_class: 'screenshot-draw-tool-button',
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Limpiar Todo (Supr)',
+            accessible_name: 'Limpiar todo (Supr)',
         });
         clearBtn.set_child(new St.Icon({
             icon_name: 'edit-clear-symbolic',
@@ -217,6 +258,21 @@ class DrawingToolbar extends St.BoxLayout {
             this._model.clear();
         });
         this.add_child(clearBtn);
+    }
+
+    get colorPopover() {
+        return this._colorPopover;
+    }
+
+    get colorButton() {
+        return this._colorButton;
+    }
+
+    /** Oculta la paleta desplegable, si está abierta. */
+    closePopover() {
+        if (this._colorPopover) {
+            this._colorPopover.visible = false;
+        }
     }
 
     _syncState() {
@@ -231,9 +287,24 @@ class DrawingToolbar extends St.BoxLayout {
         if (this._sizeLabel) {
             this._sizeLabel.set_text(`${this._model.activeWidth}px`);
         }
+
+        if (this._undoBtn) {
+            this._undoBtn.reactive = this._model.canUndo();
+            this._undoBtn.opacity = this._model.canUndo() ? 255 : 90;
+        }
+
+        if (this._redoBtn) {
+            this._redoBtn.reactive = this._model.canRedo();
+            this._redoBtn.opacity = this._model.canRedo() ? 255 : 90;
+        }
     }
 
     destroy() {
+        if (this._colorPopover) {
+            this._colorPopover.get_parent()?.remove_child(this._colorPopover);
+            this._colorPopover.destroy();
+            this._colorPopover = null;
+        }
         if (this._model && this._modelListener) {
             this._model.removeListener(this._modelListener);
             this._modelListener = null;
