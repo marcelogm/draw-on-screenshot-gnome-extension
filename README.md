@@ -19,12 +19,15 @@ Compatible con **GNOME Shell 48, 49 y 50**.
   `Ctrl` dibuja desde el centro, y el botón de relleno (`F`) alterna contorno/relleno.
 - 🖍️ **Resaltador**: marcador translúcido (`H`).
 - 🔤 **Texto**: entrada en pantalla, `Enter` confirma y `Esc` cancela (`T`).
-  Se dibuja con **grosor normal**; la negrita es opcional desde preferencias.
+  Se dibuja con Pango, el mismo motor que el resto del escritorio, así que sale con
+  **grosor normal**; la negrita es opcional desde preferencias. Con la herramienta de
+  texto activa, **arrastrá una anotación ya escrita para reubicarla**.
 - 🔢 **Contador automático**: burbujas numeradas al estilo Flameshot (`N`). Cada clic
   coloca el siguiente número, y deshacer/rehacer reajustan la serie sola.
 - 🌫️ **Pixelado**: arrastrá sobre una región para censurarla (`X`). No es un mosaico
   pintado encima: **transforma la imagen de debajo**, en vivo y en la GPU, como el
-  censurado de iOS o WhatsApp. Lo que ves es lo que se guarda.
+  censurado de iOS o WhatsApp. Lo que ves es lo que se guarda. El bloque es de 4 px
+  lógicos de fábrica y se puede bajar hasta 2 o subir hasta 64 desde preferencias.
 - 🎨 **Paleta editable**: botón compacto con la paleta configurada (`C` para rotar).
   Se abre como overlay sobre el stage, sin ensanchar la barra.
 - 📏 **Grosor de trazo**: botones `[-]` / `[+]`, rueda del ratón, y `Ctrl` + rueda
@@ -87,6 +90,7 @@ Todos son **configurables** desde las preferencias; esta tabla son los valores d
 | **`Ctrl`** + **`Z`** | Deshacer |
 | **`Ctrl`** + **`Mayús`** + **`Z`** | Rehacer |
 | **`Supr`** | Limpiar todo |
+| **`Esc`** | Suelta la herramienta activa; sin herramienta, cierra la captura |
 
 Modificadores durante el arrastre, no configurables:
 
@@ -96,6 +100,15 @@ Modificadores durante el arrastre, no configurables:
 | **`Ctrl`** | Rectángulo, elipse y pixelado se dibujan desde el centro |
 
 Los atajos de una sola letra se desactivan mientras escribís una anotación de texto.
+
+`Esc` se desanda por capas: primero cierra la paleta desplegable, después suelta la
+herramienta activa, y sólo cuando no queda nada seleccionado cierra la interfaz de
+captura. Así no se pierde la captura por querer cambiar de herramienta.
+
+Los atajos se comparan primero por el símbolo de la tecla y, con distribuciones **no
+latinas** (cirílico, griego, hebreo, árabe, kana…), por la **posición física** de la
+tecla. Con una distribución latina manda siempre el símbolo, de modo que AZERTY o
+Dvorak siguen respondiendo a la tecla que está rotulada.
 
 Tienen **prioridad sobre los atajos nativos** de la interfaz de captura: en GNOME 50
 `P` alterna el puntero, y con la extensión activa selecciona el lápiz. El botón del

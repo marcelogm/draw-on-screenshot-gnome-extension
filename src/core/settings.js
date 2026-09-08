@@ -58,6 +58,44 @@ function canonicalKey(symbol) {
     return symbol;
 }
 
+/**
+ * Códigos de tecla del hardware de la zona alfanumérica, tal y como los reporta
+ * Clutter (keycode de X11, es decir evdev + 8; mutter usa la misma numeración en
+ * Wayland). Cada fila arranca en un código y avanza de uno en uno.
+ *
+ * Sirven para que los atajos sigan funcionando con distribuciones NO latinas
+ * (cirílico, griego, hebreo, árabe, kana…): ahí la tecla física «p» no produce
+ * el símbolo `p`, sino su equivalente en el alfabeto local, y comparar sólo por
+ * símbolo dejaba todos los atajos muertos. Esa es la razón de que «los atajos no
+ * sirvan en algunas máquinas»: no depende del equipo, sino de la distribución de
+ * teclado activa.
+ */
+const KEYCODE_ROWS = [
+    [10, '1234567890-='],
+    [24, 'qwertyuiop[]'],
+    [38, "asdfghjkl;'"],
+    [52, 'zxcvbnm,./'],
+];
+
+/** Símbolo latino -> código de tecla física en la distribución de referencia. */
+const KEYCODE_BY_SYMBOL = new Map();
+for (const [first, chars] of KEYCODE_ROWS) {
+    for (let i = 0; i < chars.length; i++) {
+        // Los keysyms latinos coinciden con el código ASCII del carácter, así
+        // que `Clutter.KEY_a === 'a'.charCodeAt(0)`.
+        KEYCODE_BY_SYMBOL.set(chars.charCodeAt(i), first + i);
+    }
+}
+
+/**
+ * ¿Es un símbolo del bloque ASCII imprimible? Si lo es, la distribución activa
+ * es latina y hay que fiarse de ella: el respaldo por código de tecla haría que,
+ * por ejemplo, en AZERTY la tecla rotulada «Q» disparase el atajo `a`.
+ */
+function isLatinSymbol(symbol) {
+    return symbol >= 0x20 && symbol <= 0x7e;
+}
+
 const MODIFIER_TOKENS = {
     control: Clutter.ModifierType.CONTROL_MASK,
     primary: Clutter.ModifierType.CONTROL_MASK,
@@ -80,7 +118,9 @@ export const RELEVANT_MODIFIERS =
  * No se usa `Gtk.accelerator_parse` porque las reglas de extensions.gnome.org
  * prohíben importar Gtk dentro del proceso de GNOME Shell.
  *
- * @returns {{ symbol: number, mods: number }|null}
+ * @returns {{ symbol: number, mods: number, keycode: number }|null}
+ *   `keycode` es 0 cuando la tecla no está en la zona alfanumérica y, por tanto,
+ *   no necesita el respaldo por posición física.
  */
 export function parseAccelerator(accel) {
     if (typeof accel !== 'string') return null;
@@ -114,23 +154,42 @@ export function parseAccelerator(accel) {
         return null;
     }
 
-    return { symbol: canonicalKey(symbol), mods };
+    const canonical = canonicalKey(symbol);
+    return {
+        symbol: canonical,
+        mods,
+        keycode: KEYCODE_BY_SYMBOL.get(canonical) ?? 0,
+    };
 }
 
-/** ¿Coincide el evento de teclado con el atajo analizado? */
-export function acceleratorMatches(binding, symbol, state) {
+/**
+ * ¿Coincide el evento de teclado con el atajo analizado?
+ *
+ * @param {number} keycode Código de tecla física del evento
+ *   (`Clutter.Event.get_key_code()`). Opcional: sin él sólo se compara el
+ *   símbolo, que es lo correcto con distribuciones latinas.
+ */
+export function acceleratorMatches(binding, symbol, state, keycode = 0) {
     if (!binding) return false;
-    if (canonicalKey(symbol) !== binding.symbol) return false;
 
     const active = state & RELEVANT_MODIFIERS;
-    if (active === binding.mods) return true;
+    let modsOk = active === binding.mods;
 
     // Un atajo sin modificadores debe seguir respondiendo con Bloq Mayús puesto
     // o con Mayús pulsada: `P` y `p` son la misma tecla para el usuario.
-    if (binding.mods === 0) {
-        return (active & ~Clutter.ModifierType.SHIFT_MASK) === 0;
+    if (!modsOk && binding.mods === 0) {
+        modsOk = (active & ~Clutter.ModifierType.SHIFT_MASK) === 0;
     }
-    return false;
+    if (!modsOk) return false;
+
+    if (canonicalKey(symbol) === binding.symbol) return true;
+
+    // Distribución no latina: el símbolo nunca podrá coincidir, así que se
+    // compara la POSICIÓN de la tecla. Con una distribución latina no se llega
+    // aquí, de modo que AZERTY o Dvorak siguen mandando sobre la posición.
+    return binding.keycode !== 0 &&
+           keycode === binding.keycode &&
+           !isLatinSymbol(symbol);
 }
 
 /** Nombres de tecla que se leen mejor con su símbolo o su forma abreviada. */

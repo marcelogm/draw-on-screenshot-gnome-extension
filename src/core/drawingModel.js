@@ -81,7 +81,7 @@ export class DrawingModel {
         this.textBold = false;
         this.fontFamily = 'Sans';
         this.counterStart = 1;
-        this.pixelateBlock = 12;
+        this.pixelateBlock = 4;
         this._redoStack = [];
         this._listeners = new Set();
     }
@@ -122,7 +122,7 @@ export class DrawingModel {
         }
         if (Number.isFinite(prefs.counterStart)) this.counterStart = prefs.counterStart;
         if (Number.isFinite(prefs.pixelateBlock)) {
-            this.pixelateBlock = Math.max(4, Math.min(64, prefs.pixelateBlock));
+            this.pixelateBlock = Math.max(2, Math.min(64, prefs.pixelateBlock));
         }
 
         this._notify();
@@ -332,6 +332,12 @@ export class DrawingModel {
         this._notify();
     }
 
+    /**
+     * @param {number} x
+     * @param {number} y Esquina SUPERIOR IZQUIERDA del texto, en coordenadas del
+     *   stage: es donde estaba el cuadro de entrada y donde Pango empieza a
+     *   pintar, así que lo escrito y lo estampado caen en el mismo sitio.
+     */
     addTextStroke(x, y, text) {
         if (!text || text.trim().length === 0) return;
 
@@ -350,6 +356,18 @@ export class DrawingModel {
             y,
         });
         this._redoStack = [];
+        this._notify();
+    }
+
+    /**
+     * Reubica una anotación suelta (texto o contador). No entra en la pila de
+     * deshacer: mover no crea ni destruye nada, y meterlo ahí obligaría a
+     * guardar una posición anterior por cada evento de movimiento.
+     */
+    moveStroke(stroke, x, y) {
+        if (!stroke) return;
+        stroke.x = x;
+        stroke.y = y;
         this._notify();
     }
 

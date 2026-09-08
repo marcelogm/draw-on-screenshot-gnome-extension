@@ -396,6 +396,11 @@ export const DrawingToolbar = GObject.registerClass({
         return this._colorButton;
     }
 
+    /** ¿Está desplegada la paleta de colores? */
+    get isPopoverOpen() {
+        return this._colorPopover?.visible === true;
+    }
+
     /** Oculta la paleta desplegable, si está abierta. */
     closePopover() {
         if (this._colorPopover) {

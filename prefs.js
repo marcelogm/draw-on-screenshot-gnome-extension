@@ -347,7 +347,7 @@ export default class DrawOnScreenshotPreferences extends ExtensionPreferences {
             title: _('Pixelation block size'),
             subtitle: _('Larger blocks hide more. Applied when the capture is saved.'),
             adjustment: new Gtk.Adjustment({
-                lower: 4, upper: 64, step_increment: 1, page_increment: 4,
+                lower: 2, upper: 64, step_increment: 1, page_increment: 4,
             }),
         });
         settings.bind('pixelate-block', blockRow, 'value', Gio.SettingsBindFlags.DEFAULT);

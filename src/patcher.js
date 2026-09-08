@@ -16,7 +16,7 @@ import { PixelateLayer } from './ui/pixelateOverlay.js';
 import { TooltipManager } from './ui/tooltip.js';
 import { ScreenshotCompositor } from './core/compositor.js';
 import { parseAccelerator, acceleratorMatches } from './core/settings.js';
-import { logError, logWarning } from './core/log.js';
+import { logError, logWarning, logDebug } from './core/log.js';
 
 /**
  * Separación vertical, en px lógicos, entre el borde superior del panel nativo y
@@ -85,6 +85,7 @@ export class ScreenshotPatcher {
         this._drawingCanvas = null;
         this._signals = [];
         this._eventHandlers = [];
+        this._uiHandlers = [];
         this._retryId = null;
         this._canPatchSave = false;
 
@@ -143,6 +144,7 @@ export class ScreenshotPatcher {
         this._cleanLeftovers(ui);
         this._createUIComponents(ui);
         this._hookMethods(ui);
+        this._connectUIHandlers();
     }
 
     /**
@@ -217,8 +219,9 @@ export class ScreenshotPatcher {
             this._retryId = null;
         }
 
-        // 1. Desconectar listener global del stage
+        // 1. Desconectar listeners de teclado y rueda
         this._disconnectStageHandlers();
+        this._disconnectUIHandlers();
 
         // 2. Restaurar métodos originales
         if (ui && this._origSaveScreenshot) {
@@ -310,21 +313,35 @@ export class ScreenshotPatcher {
      * El stage se mantiene como red de seguridad para el caso sin grab. No hay
      * riesgo de actuar dos veces: el primero que encaja devuelve `EVENT_STOP` y
      * corta la propagación.
+     *
+     * Estos dos van puestos desde que se habilita la extensión y no se sueltan
+     * al cerrar la captura: `screenshotUI` sólo recibe eventos mientras está
+     * abierta, así que no cuesta nada dejarlos, y así los atajos responden
+     * aunque la interfaz se abra por un camino que no pase por el `open()`
+     * parcheado (por ejemplo si otra extensión lo sustituye después).
+     */
+    _connectUIHandlers() {
+        const ui = Main.screenshotUI;
+        if (!ui || this._uiHandlers.length > 0) return;
+
+        const onCaptured = (actor, event) => this._onCapturedEvent(event);
+        this._uiHandlers.push([ui, ui.connect('captured-event', onCaptured)]);
+        this._uiHandlers.push([ui, ui.connect('key-press-event', onCaptured)]);
+    }
+
+    /**
+     * Red de seguridad sobre el stage para el caso sin grab. Ésta sí va y viene
+     * con la interfaz: en fase de captura el stage ve TODOS los eventos, también
+     * los de movimiento, y no conviene pagar eso con la interfaz cerrada.
      */
     _connectStageHandlers() {
+        this._connectUIHandlers();
+
         if (this._eventHandlers.length > 0) return;
 
         const onCaptured = (actor, event) => this._onCapturedEvent(event);
-
-        const targets = [Main.screenshotUI, global.stage].filter(Boolean);
-        for (const target of targets) {
-            this._eventHandlers.push([target, target.connect('captured-event', onCaptured)]);
-        }
-
-        const ui = Main.screenshotUI;
-        if (ui) {
-            this._eventHandlers.push([ui, ui.connect('key-press-event', onCaptured)]);
-        }
+        this._eventHandlers.push(
+            [global.stage, global.stage.connect('captured-event', onCaptured)]);
     }
 
     _disconnectStageHandlers() {
@@ -336,6 +353,17 @@ export class ScreenshotPatcher {
             }
         }
         this._eventHandlers = [];
+    }
+
+    _disconnectUIHandlers() {
+        for (const [obj, id] of this._uiHandlers) {
+            try {
+                obj.disconnect(id);
+            } catch (e) {
+                // ignorar
+            }
+        }
+        this._uiHandlers = [];
     }
 
     _onCapturedEvent(event) {
@@ -665,16 +693,36 @@ export class ScreenshotPatcher {
         if (this._drawingCanvas?.hasTextEntry) {
             return Clutter.EVENT_PROPAGATE;
         }
+        // Sólo un campo EDITABLE justifica ceder las teclas. Un `Clutter.Text` de
+        // sólo lectura (el interior de cualquier St.Label) también puede acabar
+        // con el foco, y comprobar únicamente el tipo dejaba los atajos mudos.
         const focus = global.stage.get_key_focus();
-        if (focus instanceof Clutter.Text) {
+        if (focus instanceof Clutter.Text && focus.editable) {
             return Clutter.EVENT_PROPAGATE;
         }
 
         const symbol = event.get_key_symbol();
         const state = event.get_state();
+        const keycode = event.get_key_code?.() ?? 0;
+
+        // Escape se desanda por capas: primero la paleta desplegable, luego la
+        // herramienta activa y, sólo cuando no queda nada que soltar, el evento
+        // sigue hasta la interfaz nativa, que es la que cierra la captura.
+        if (symbol === Clutter.KEY_Escape) {
+            if (this._toolbar?.isPopoverOpen) {
+                this._toolbar.closePopover();
+                return Clutter.EVENT_STOP;
+            }
+            if (this._model.hasActiveTool()) {
+                this._tooltips?.hide();
+                this._model.setActiveTool(null);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        }
 
         for (const [key, binding] of this._bindings) {
-            if (!acceleratorMatches(binding, symbol, state)) continue;
+            if (!acceleratorMatches(binding, symbol, state, keycode)) continue;
 
             const action = SHORTCUT_ACTIONS[key];
             if (!action) continue;
@@ -684,6 +732,7 @@ export class ScreenshotPatcher {
             return Clutter.EVENT_STOP;
         }
 
+        logDebug(`tecla sin atajo: symbol=${symbol} keycode=${keycode} state=${state}`);
         return Clutter.EVENT_PROPAGATE;
     }
 

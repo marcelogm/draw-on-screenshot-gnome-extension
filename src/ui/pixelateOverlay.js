@@ -232,7 +232,7 @@ export class PixelateLayer {
                 this._regions[index] = region;
             }
 
-            region.setRegion(rect, stroke.block ?? 12);
+            region.setRegion(rect, stroke.block ?? 4);
             region.visible = rect.width >= 2 && rect.height >= 2;
         });
     }

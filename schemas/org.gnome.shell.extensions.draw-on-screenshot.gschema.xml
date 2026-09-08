@@ -106,8 +106,8 @@
 
     <!-- ============ Pixelado ============ -->
     <key name="pixelate-block" type="i">
-      <range min="4" max="64"/>
-      <default>12</default>
+      <range min="2" max="64"/>
+      <default>4</default>
       <summary>Pixelation block size</summary>
       <description>Size, in logical pixels, of each block produced by the pixelate tool.</description>
     </key>

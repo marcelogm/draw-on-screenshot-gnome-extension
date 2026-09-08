@@ -110,7 +110,7 @@ export class ScreenshotCompositor {
             const h = y1 - y0;
             if (w < 2 || h < 2) continue;
 
-            const block = Math.max(2, Math.round((stroke.block ?? 12) * scale));
+            const block = Math.max(1, Math.round((stroke.block ?? 4) * scale));
             const smallW = Math.max(1, Math.round(w / block));
             const smallH = Math.max(1, Math.round(h / block));
 

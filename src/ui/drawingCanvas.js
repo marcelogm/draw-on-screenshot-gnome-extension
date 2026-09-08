@@ -2,6 +2,8 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import cairo from 'gi://cairo';
+import Pango from 'gi://Pango';
+import PangoCairo from 'gi://PangoCairo';
 import { ToolType } from '../core/drawingModel.js';
 import { luminance } from '../core/settings.js';
 import { logError } from '../core/log.js';
@@ -12,6 +14,12 @@ const SHADOW_ALPHA = 0.45;
 
 /** Herramientas a las que una sombra no aporta nada o directamente estorba. */
 const NO_SHADOW_TOOLS = new Set([ToolType.HIGHLIGHTER, ToolType.PIXELATE]);
+
+/** Lado del bloque de pixelado cuando el trazo no trae uno propio, en px lógicos. */
+const DEFAULT_PIXELATE_BLOCK = 4;
+
+/** Holgura alrededor de una anotación de texto para agarrarla con el ratón. */
+const TEXT_GRAB_PADDING = 6;
 
 /**
  * Renderiza un trazo sobre un contexto de Cairo.
@@ -62,7 +70,7 @@ export function renderStroke(cr, stroke, scale = 1.0, offsetX = 0, offsetY = 0, 
         }
     }
 
-    const { color, width, tool, points, start, end, text, fontSize, x, y } = stroke;
+    const { color, width, tool, points, start, end, text, x, y } = stroke;
     const scaledWidth = width * scale;
 
     const tx = px => px * scale - offsetX;
@@ -177,20 +185,74 @@ export function renderStroke(cr, stroke, scale = 1.0, offsetX = 0, offsetY = 0, 
         } else if (tool === ToolType.TEXT) {
             if (!text) return;
 
-            cr.selectFontFace(
-                stroke.fontFamily || 'Sans',
-                cairo.FontSlant.NORMAL,
-                stroke.bold ? cairo.FontWeight.BOLD : cairo.FontWeight.NORMAL
-            );
-            cr.setFontSize((fontSize || 22) * scale);
+            // `x`, `y` es la esquina SUPERIOR IZQUIERDA, no la línea base: es lo
+            // que devuelve Pango y lo que coincide con el cuadro de entrada.
             cr.moveTo(tx(x), ty(y));
-            cr.showText(text);
+            PangoCairo.show_layout(cr, buildTextLayout(cr, stroke, scale));
         } else if (tool === ToolType.COUNTER) {
             renderCounter(cr, stroke, scale, tx(x), ty(y), isShadow);
         }
     } finally {
+        // El path NO forma parte del estado gráfico: `cr.restore()` no lo
+        // deshace. Texto y contador terminan con un `moveTo` sin consumir, y
+        // `cairo_arc()` une el punto actual con el inicio del arco con una
+        // RECTA, así que el siguiente círculo que se dibujara (el preview bajo
+        // el cursor, o un punto suelto de lápiz) aparecía atado a la última
+        // anotación por una línea fina. Vaciar el path lo corta de raíz.
+        cr.newPath();
         cr.restore();
     }
+}
+
+/**
+ * Prepara el `Pango.Layout` de una anotación de texto.
+ *
+ * El texto NO se dibuja con la API «de juguete» de Cairo (`selectFontFace` /
+ * `showText`). Esa vía resuelve la familia por su cuenta y para «Sans» acaba
+ * eligiendo una variante más gruesa que la que usa el resto del escritorio: el
+ * texto salía en negrita aunque la preferencia estuviese desactivada. Pango es
+ * además el mismo motor que pinta el cuadro de entrada, así que lo escrito y lo
+ * estampado coinciden, y trae de serie el moldeado de escrituras complejas y de
+ * los emoji, que `showText` no sabe hacer.
+ */
+function buildTextLayout(cr, stroke, scale = 1.0) {
+    const layout = PangoCairo.create_layout(cr);
+
+    const desc = Pango.FontDescription.new();
+    desc.set_family(stroke.fontFamily || 'Sans');
+    desc.set_weight(stroke.bold ? Pango.Weight.BOLD : Pango.Weight.NORMAL);
+    // Tamaño ABSOLUTO: `set_size` habla en puntos y quedaría a merced de los
+    // ppp del escritorio; aquí el tamaño ya está en píxeles lógicos.
+    desc.set_absolute_size((stroke.fontSize || 22) * scale * Pango.SCALE);
+    layout.set_font_description(desc);
+
+    layout.set_text(stroke.text ?? '', -1);
+    return layout;
+}
+
+/**
+ * Tamaño en píxeles lógicos de una anotación de texto, para poder agarrarla con
+ * el ratón. El resultado se memoriza en el propio trazo: medir exige montar un
+ * contexto de Cairo y el texto ya no cambia una vez confirmado.
+ *
+ * @returns {{ width: number, height: number }}
+ */
+export function textStrokeSize(stroke) {
+    if (!stroke?.text) return { width: 0, height: 0 };
+    if (stroke._size) return stroke._size;
+
+    const surface = new cairo.ImageSurface(cairo.Format.ARGB32, 1, 1);
+    const cr = new cairo.Context(surface);
+    try {
+        const [, logical] = buildTextLayout(cr, stroke, 1.0).get_pixel_extents();
+        stroke._size = { width: logical.width, height: logical.height };
+    } catch (err) {
+        logError('No se pudo medir una anotación de texto', err);
+        stroke._size = { width: 0, height: 0 };
+    } finally {
+        cr.$dispose();
+    }
+    return stroke._size;
 }
 
 /**
@@ -236,6 +298,9 @@ function renderCounter(cr, stroke, scale, cx, cy, isShadow) {
         cy - extents.height / 2 - extents.yBearing
     );
     cr.showText(label);
+    // `showText` deja punto actual; se llama también desde el preview, fuera
+    // del `finally` de `renderStroke` que lo limpia.
+    cr.newPath();
 }
 
 /**
@@ -262,7 +327,7 @@ function renderPixelatePreview(cr, stroke, scale, offsetX, offsetY, mode = 'mosa
     const h = Math.abs(end.y - start.y) * scale;
     if (w < 1 || h < 1) return;
 
-    const block = Math.max(4, (stroke.block ?? 12) * scale);
+    const block = Math.max(2, (stroke.block ?? DEFAULT_PIXELATE_BLOCK) * scale);
 
     cr.save();
     try {
@@ -320,6 +385,8 @@ export const DrawingCanvas = GObject.registerClass({
         this._model = model;
         this._isDrawing = false;
         this._activeTextEntry = null;
+        // Anotación de texto que se está reubicando con el ratón, si la hay.
+        this._draggingText = null;
         this._pointerX = 0;
         this._pointerY = 0;
         this._pointerInside = false;
@@ -338,6 +405,10 @@ export const DrawingCanvas = GObject.registerClass({
             // herramienta), el gesto de arrastre deja de ser válido.
             if (this._isDrawing && !this._model.currentStroke) {
                 this._isDrawing = false;
+            }
+            if (this._draggingText &&
+                !this._model.strokes.includes(this._draggingText.stroke)) {
+                this._draggingText = null;
             }
             this.queue_repaint();
         };
@@ -391,6 +462,10 @@ export const DrawingCanvas = GObject.registerClass({
 
         const cx = this._pointerX - offsetX;
         const cy = this._pointerY - offsetY;
+
+        // Por si el contexto llega con un punto actual de algún trazo previo:
+        // `cairo_arc()` lo enlazaría con una recta hasta el círculo.
+        cr.newPath();
 
         if (tool === ToolType.COUNTER) {
             cr.save();
@@ -482,6 +557,19 @@ export const DrawingCanvas = GObject.registerClass({
             const tool = this._model.activeTool;
 
             if (tool === ToolType.TEXT) {
+                // Pulsar SOBRE un texto ya escrito lo mueve; sólo el clic en
+                // hueco abre un cuadro nuevo.
+                const target = this._textStrokeAt(x, y);
+                if (target) {
+                    this._draggingText = {
+                        stroke: target,
+                        dx: x - target.x,
+                        dy: y - target.y,
+                    };
+                    this.emit('draw-started');
+                    return Clutter.EVENT_STOP;
+                }
+
                 this._spawnTextEntry(x, y);
                 return Clutter.EVENT_STOP;
             }
@@ -506,6 +594,12 @@ export const DrawingCanvas = GObject.registerClass({
         this._pointerY = y;
         this._pointerInside = true;
 
+        if (this._draggingText) {
+            const { stroke, dx, dy } = this._draggingText;
+            this._model.moveStroke(stroke, x - dx, y - dy);
+            return Clutter.EVENT_STOP;
+        }
+
         if (this._isDrawing) {
             this._model.updateStroke(x, y, this._modifiersFrom(event));
             return Clutter.EVENT_STOP;
@@ -520,6 +614,12 @@ export const DrawingCanvas = GObject.registerClass({
     }
 
     vfunc_button_release_event(event) {
+        if (event.get_button() === Clutter.BUTTON_PRIMARY && this._draggingText) {
+            this._draggingText = null;
+            this.emit('draw-ended');
+            return Clutter.EVENT_STOP;
+        }
+
         if (event.get_button() === Clutter.BUTTON_PRIMARY && this._isDrawing) {
             this._isDrawing = false;
             this._model.endStroke();
@@ -562,6 +662,30 @@ export const DrawingCanvas = GObject.registerClass({
         this.queue_repaint();
     }
 
+    /**
+     * Anotación de texto bajo un punto del stage, o `null`. Se recorre de atrás
+     * hacia delante para que, con textos superpuestos, agarre el de encima, que
+     * es el que se ve.
+     */
+    _textStrokeAt(x, y) {
+        const strokes = this._model.strokes;
+        for (let i = strokes.length - 1; i >= 0; i--) {
+            const stroke = strokes[i];
+            if (stroke.tool !== ToolType.TEXT) continue;
+
+            const { width, height } = textStrokeSize(stroke);
+            if (width <= 0 || height <= 0) continue;
+
+            if (x >= stroke.x - TEXT_GRAB_PADDING &&
+                x <= stroke.x + width + TEXT_GRAB_PADDING &&
+                y >= stroke.y - TEXT_GRAB_PADDING &&
+                y <= stroke.y + height + TEXT_GRAB_PADDING) {
+                return stroke;
+            }
+        }
+        return null;
+    }
+
     get hasTextEntry() {
         return this._activeTextEntry !== null;
     }
@@ -591,6 +715,14 @@ export const DrawingCanvas = GObject.registerClass({
         entry.grab_key_focus();
 
         const dismiss = () => {
+            // Soltar el foco ANTES de destruir. Si desaparece el actor que lo
+            // tiene, la capa de accesibilidad sale a buscar su padre y se
+            // encuentra con un objeto ya liberado (Clutter/Atk-CRITICAL).
+            const focus = global.stage.get_key_focus();
+            if (focus && (focus === entry || entry.contains(focus))) {
+                global.stage.set_key_focus(null);
+            }
+
             if (entry.get_parent()) {
                 entry.get_parent().remove_child(entry);
             }
@@ -601,7 +733,15 @@ export const DrawingCanvas = GObject.registerClass({
         const commit = () => {
             const txt = entry.get_text();
             if (txt && txt.trim().length > 0) {
-                this._model.addTextStroke(x, y + fontSize, txt);
+                // El texto no empieza en la esquina del St.Entry: el borde y el
+                // relleno que le pone el tema lo meten unos píxeles hacia dentro,
+                // y estampar en `x, y` a secas desplazaba la anotación respecto a
+                // lo que se acababa de escribir. El desfase se MIDE sobre los
+                // actores en vez de suponerlo, así que sigue siendo correcto si
+                // el tema cambia. Sin asignar todavía, ambas posiciones son 0 y
+                // el desfase sale 0, que es el comportamiento anterior.
+                const [inkX, inkY] = this._textEntryInset(entry);
+                this._model.addTextStroke(x + inkX, y + inkY, txt);
             }
             dismiss();
         };
@@ -616,6 +756,23 @@ export const DrawingCanvas = GObject.registerClass({
         });
 
         this._activeTextEntry = { entry, commit, dismiss };
+    }
+
+    /**
+     * Desplazamiento del texto respecto a la esquina del cuadro de entrada, en
+     * píxeles lógicos.
+     *
+     * @returns {[number, number]}
+     */
+    _textEntryInset(entry) {
+        const inner = entry?.clutter_text;
+        if (!inner) return [0, 0];
+
+        const [ex, ey] = entry.get_transformed_position();
+        const [cx, cy] = inner.get_transformed_position();
+        if (![ex, ey, cx, cy].every(Number.isFinite)) return [0, 0];
+
+        return [cx - ex, cy - ey];
     }
 
     _commitTextEntry() {
